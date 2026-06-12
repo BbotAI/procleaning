@@ -1,0 +1,16 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.suo
+
+# KPW internal files — do not push to client repo
+CLIENT_BRIEF_TEMPLATE.md
+CLIENT_BRIEF.md
+CLIENT_BRIEF.md.txt
+BUILD_COMMAND_TEMPLATE.md
+TEMPLATE_GUIDE.md
