@@ -1,0 +1,9 @@
+{
+  "name": "run-pro-cleaning-services-skill",
+  "private": true,
+  "description": "Playwright driver for visual QA of the procleaningsalinaks.com static site (screenshots, mobile viewport emulation, console-error checking). Not part of the deployed site — agent tooling only.",
+  "type": "module",
+  "dependencies": {
+    "playwright": "1.61.1"
+  }
+}
