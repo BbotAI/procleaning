@@ -1,0 +1,48 @@
+# Pro Cleaning Services LLC — LLM Access File
+# Professional cleaning company
+# Salina, Kansas
+
+> Pro Cleaning Services LLC provides residential and commercial
+cleaning in Salina Kansas and Saline County. Services include home
+cleaning, deep cleaning, move-in/move-out cleaning, and germ
+prevention cleaning. Owner Jennifer Diehl is fully insured and
+bonded with 10 years of experience.
+Phone: 785-452-0793
+Website: https://procleaningsalinaks.com
+
+## Pages
+
+/ — Homepage. Home cleaning, deep cleaning, move in/out, and germ
+  prevention in Salina, Kansas.
+
+/services.html — Overview of all services: home cleaning, move
+  in/out cleaning, deep cleaning, and germ prevention in Salina
+  and Saline County, Kansas.
+
+/home-cleaning.html — Home cleaning in Salina, Kansas. Regular,
+  weekly, bi-weekly, and monthly house cleaning.
+
+/deep-cleaning.html — Deep cleaning in Salina, Kansas. Baseboards,
+  appliance interiors, grout, behind furniture, and more.
+
+/move-in-move-out.html — Move in and move out cleaning in Salina,
+  Kansas. Every room, cabinet, closet, and corner cleaned.
+
+/germ-prevention.html — Germ prevention, disinfection, and
+  sanitizing in Salina, Kansas. High-touch surface treatment, virus
+  and bacteria reduction.
+
+/service-area.html — Service area: Salina and Saline County,
+  Kansas. Based in Brookville, KS.
+
+/about.html — About Jennifer Diehl, owner of Pro Cleaning Services.
+  Fully insured and bonded, 10 years of experience.
+
+/contact.html — Get a free quote. Call 785-452-0793, text, or fill
+  out the online form.
+
+## Service Area
+Salina KS, Saline County, Central Kansas
+
+## Contact
+Phone: 785-452-0793
