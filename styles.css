@@ -113,7 +113,7 @@ img { max-width: 100%; height: auto; display: block; }
 /* Image hero — homepage */
 .hero--image {
   min-height: 400px;
-  background-image: linear-gradient(rgba(0,0,0,0.50), rgba(0,0,0,0.50)), url('images/hero-home.jpg');
+  background-image: linear-gradient(rgba(0,0,0,0.50), rgba(0,0,0,0.50)), url('images/hero-home.webp');
   background-size: cover; background-position: center; background-repeat: no-repeat;
 }
 @media (min-width: 768px) {
@@ -127,10 +127,10 @@ img { max-width: 100%; height: auto; display: block; }
 .hero--image .btn-outline:hover    { background: rgba(255,255,255,0.15); color: #fff; }
 
 /* Service page image heroes */
-.hero--homeCleaning  { background-image: linear-gradient(rgba(0,0,0,0.50),rgba(0,0,0,0.50)), url('images/hero-service-1.jpg'); background-size:cover; background-position:center; }
-.hero--moveInMoveOut { background-image: linear-gradient(rgba(0,0,0,0.50),rgba(0,0,0,0.50)), url('images/hero-service-2.jpg'); background-size:cover; background-position:center; }
+.hero--homeCleaning  { background-image: linear-gradient(rgba(0,0,0,0.50),rgba(0,0,0,0.50)), url('images/hero-service-1.webp'); background-size:cover; background-position:center; }
+.hero--moveInMoveOut { background-image: linear-gradient(rgba(0,0,0,0.50),rgba(0,0,0,0.50)), url('images/hero-service-2.webp'); background-size:cover; background-position:center; }
 .hero--deepCleaning  { background-image: linear-gradient(rgba(0,0,0,0.50),rgba(0,0,0,0.50)), url('images/hero-service-3.jpg'); background-size:cover; background-position:center; }
-.hero--germPrevention{ background-image: linear-gradient(rgba(0,0,0,0.50),rgba(0,0,0,0.50)), url('images/hero-service-4.jpg'); background-size:cover; background-position:center; }
+.hero--germPrevention{ background-image: linear-gradient(rgba(0,0,0,0.50),rgba(0,0,0,0.50)), url('images/hero-service-4.webp'); background-size:cover; background-position:center; }
 
 /* ─── SECTIONS ────────────────────────────────────── */
 .section { padding: 56px 0; }
