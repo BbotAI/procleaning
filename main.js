@@ -3,14 +3,14 @@ const services = [
     name: "Home Cleaning",
     description: "Regular residential cleaning that keeps your home fresh and comfortable. We handle the work so you can focus on what matters most.",
     url: "home-cleaning.html",
-    image: "images/hero-service-1.jpg",
+    image: "images/hero-service-1.webp",
     alt: "Home cleaning services in Salina, Kansas — Pro Cleaning Services"
   },
   {
     name: "Move In / Move Out",
     description: "Thorough cleaning for moves, landlords, and property managers. We leave every space spotless for the next chapter.",
     url: "move-in-move-out.html",
-    image: "images/hero-service-2.jpg",
+    image: "images/hero-service-2.webp",
     alt: "Move in move out cleaning in Salina, Kansas — Pro Cleaning Services"
   },
   {
@@ -24,7 +24,7 @@ const services = [
     name: "Germ Prevention",
     description: "Professional disinfection and sanitizing to protect your home or office from bacteria, viruses, and illness.",
     url: "germ-prevention.html",
-    image: "images/hero-service-4.jpg",
+    image: "images/hero-service-4.webp",
     alt: "Germ prevention and disinfection in Salina, Kansas — Pro Cleaning Services"
   }
 ];

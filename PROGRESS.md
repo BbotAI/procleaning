@@ -115,8 +115,8 @@ Once the domain is known, run a find-and-replace across all files:
 
 ## POST-BUILD DEPLOYMENT CHECKLIST (for Kaleb)
 
-- [ ] Rename `featured-1.jpg.jpg` → `featured-1.jpg` in images folder
-- [ ] Rename `og-image.jpg.jpeg` → `og-image.jpg` in images folder
+- [x] Rename `featured-1.jpg.jpg` → `featured-1.jpg` in images folder
+- [x] Rename `og-image.jpg.jpeg` → `og-image.jpg` in images folder
 - [ ] Get domain from Jennifer — replace all `your-domain.com` with real domain
 - [ ] Update CNAME file with real domain
 - [ ] Review all pages — confirm zero old client content anywhere
