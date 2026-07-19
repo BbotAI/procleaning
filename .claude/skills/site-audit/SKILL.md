@@ -57,6 +57,45 @@ DO NOT REPORT:
   - Anything already documented as known and
     open (see PHASE 0)
 
+## FINDING CLASSIFICATION
+
+Every finding must be tagged CODE or INFRA.
+
+CODE — fixable by editing files in this repo.
+  Eligible for CONFIRMED and the top 15.
+
+INFRA — requires a dashboard, DNS change,
+  registrar, hosting panel, or third-party
+  account (Cloudflare, GitHub Pages settings,
+  GBP, Blogger, Search Console).
+  These go in MANUAL CHECKS, never in the
+  top 15, regardless of severity. State the
+  exact dashboard path.
+
+Rationale: the top 15 exists to direct code
+work. Mixing in settings changes makes the
+list unactionable in a coding session.
+
+If you cannot determine whether something is
+CODE or INFRA, mark it UNKNOWN and explain
+what would settle it.
+
+## SEVERITY CALIBRATION
+
+Before ranking any finding as high impact,
+check whether an existing mechanism already
+mitigates it. Examples:
+- HTTP serving 200 is mitigated by canonical
+  tags pointing at HTTPS
+- A missing preload is mitigated if the LCP
+  element is already preloaded elsewhere
+- Duplicate URLs are mitigated by correct
+  canonicals
+
+State the mitigation in the finding. A
+mitigated issue is hardening, not a defect,
+and should be ranked accordingly.
+
 ## PHASE 0 — ORIENT (do this first)
 
 Determine everything from the folder you are
@@ -93,6 +132,50 @@ GSC Coverage API reporting 0 indexed while
 live impressions exist is a known false
 reading across these sites — impressions
 prove indexing.
+
+## INFRASTRUCTURE CONTEXT
+
+Every KPW client site uses this architecture.
+Do not report deviations from generic best
+practice that conflict with it.
+
+DNS (Cloudflare):
+- Apex A records point to GitHub Pages IPs
+  (185.199.108-111.153) and ARE proxied
+  (orange cloud). Correct.
+- www CNAMEs to bbotai.github.io, proxied.
+  Correct.
+- blog.[domain].com CNAMEs to ghs.google.com
+  and is DNS-ONLY (grey cloud). This is
+  DELIBERATE — Blogger manages its own TLS
+  certificate and proxying it breaks HTTPS on
+  the blog. NEVER recommend proxying the blog
+  subdomain.
+- The blog is a separate hostname for Search
+  Console, favicons, and TLS. Treat it as its
+  own property.
+
+TLS:
+- Cloudflare SSL mode is Full. Verify before
+  recommending anything TLS-related; if it is
+  Flexible, enabling redirects causes an
+  infinite loop.
+- GitHub Pages "Enforce HTTPS" and Cloudflare
+  "Always Use HTTPS" cover DIFFERENT hops.
+  GitHub's governs Cloudflare→origin.
+  Cloudflare's governs visitor→edge. Both
+  being desirable does not mean either is
+  broken.
+- If http:// returns 200 instead of 301, that
+  is the Cloudflare "Always Use HTTPS" toggle
+  being off. It is a dashboard setting, not a
+  code defect, and canonical tags already
+  consolidate ranking signals on HTTPS.
+  Report it as hardening in MANUAL CHECKS.
+  Do NOT rank it in the top 15.
+- NEVER recommend enabling HSTS. It is hard
+  to reverse and offers little over Always
+  Use HTTPS for these sites.
 
 ## AUDIT SCOPE
 
