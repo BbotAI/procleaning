@@ -1,5 +1,59 @@
 # PROGRESS — Pro Cleaning Services
 
+# WHAT SHE DOES AND DOES NOT DO — read before writing anything
+
+Confirmed by Kaleb 2026-09-07. Getting this wrong means a blog post or page
+promising work she would have to turn down.
+
+**Services she offers**
+
+  Home cleaning · Move in / move out · Deep cleaning · Germ prevention
+  · Odor removal (added 2026-09-06)
+
+Odor removal in her words: disinfect, odor treatment, locate the problem
+issues, and clean. She works **natural-first** where a natural product does the
+job, and uses a proper disinfectant where disinfecting is actually needed. That
+distinction is worth keeping in the copy — it is honest and it is a genuine
+differentiator locally.
+
+**Services she does NOT offer. Never imply otherwise.**
+
+| Not offered | Why it matters |
+|---|---|
+| Steam cleaning / carpet extraction | No equipment. An accident soaked into the carpet pad needs a specialist. |
+| Flood or water damage cleanup | Different trade entirely. |
+| Furniture moving or haul-away | Cleans under and behind what moves easily, nothing more. |
+| Gutters, roofs, high exterior windows | No ladder work. |
+
+The eight blog drafts state these as limits rather than avoiding them, which
+reads as honest and stops her fielding calls she has to decline. Keep doing
+that.
+
+**Unanswered business questions** — worth asking before building anything:
+commercial and industrial cleaning. `salina commercial cleaning` sits at
+position 19.5 and `industrial cleaning salina ks` drew 69 impressions, but it
+is unknown whether she wants that work.
+
+## Blog drafts: eight written, in `blog-drafts/`
+
+Three published to Blogger and carded onto `blog.html` on 2026-09-06. Five
+more written 2026-09-07 and awaiting publication:
+
+  4. Natural odor defense        5. Hard water in Salina
+  6. Seasonal checklist          7. Realistic cleaning schedule
+  8. Cleaning with pets
+
+Each carries her Blogger logo block at the foot, an upsell to the matching
+service page, and at least two internal links. Titles, permalinks and labels
+were supplied in chat at the time of writing.
+
+**Set the custom permalink before publishing** — Blogger locks it afterwards
+and its auto-slugs truncate mid-phrase. Label vocabulary now includes
+`Natural Cleaning`, `Seasonal Cleaning` and `Pet Cleaning`; keep the spelling
+exact, because Mike's blog split its archive over a single apostrophe.
+
+---
+
 # 2026-09-07 — CONTENT BUILD: ODOR REMOVAL PAGE, THREE POSTS, BLOG CARDS
 
 ## The finding that drove all of it
