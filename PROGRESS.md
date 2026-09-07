@@ -1,5 +1,91 @@
 # PROGRESS — Pro Cleaning Services
 
+# 2026-09-07 — CONTENT BUILD: ODOR REMOVAL PAGE, THREE POSTS, BLOG CARDS
+
+## The finding that drove all of it
+
+Search Console, 90 days: **457 impressions, 4 clicks.** First data 2026-07-11,
+so the site is two months old.
+
+**199 of those 457 impressions — 44% — were for services she does not offer.**
+
+| Query | Impr | Position | On the site? |
+|---|---|---|---|
+| odor removal salina (+ ks) | **94** | 55 | was: no |
+| industrial cleaning salina ks | 69 | 32.4 | no |
+| water removal salina ks | 20 | 82.8 | no |
+| drain cleaning (several) | ~16 | 70–90 | no |
+| cleaning services salina ks | 13 | **15.6** | yes |
+| home cleaning services near me | 5 | **9.8** | yes |
+| deep clean bathroom service | 2 | **1.0** ← 1 of her 4 clicks | yes |
+
+The good news was underneath: for what she *does* offer she already sits at
+**positions 8–16** on a two-month-old site. The demand is small but the
+positions are real.
+
+**Odor removal turned out not to be a phantom.** Jodi confirmed she does the
+work — disinfect, odor treatment, locate the problem, clean. 94 impressions a
+month at position 55 with no page to land on was the single biggest gap on the
+site. Industrial cleaning, water removal and drain cleaning remain phantoms:
+Google guessing, positions 32–90, nobody sees them. **Do not build pages for
+those unless she says she does the work.**
+
+## What was built
+
+- **`odor-removal.html`** — fifth service page, cloned from
+  `germ-prevention.html` so head, nav, footer and schema match. Argues the
+  mechanism: odors come from a physical source, so an odor treatment used first
+  is why the smell came back. Four steps in order — find, clean, disinfect,
+  treat what absorbed it. Includes an *Honest Expectations* section covering
+  smoke being stubborn, results improving over days, and structural causes
+  (plumbing, leaks) that cleaning will not fix.
+- **Three blog posts**, drafted in `blog-drafts/`, published to Blogger by
+  Kaleb, then carded onto `blog.html`.
+- **Review button** on the homepage and contact page,
+  `g.page/r/CWanDWB1RI4PEBI/review`.
+- **`/review/`** — short branded redirect to the same link, for invoices,
+  the phone and follow-up texts.
+
+## Roadblocks hit, so the next session does not rediscover them
+
+**Her site is not built like Mike's.** Three concrete differences that broke
+scripted edits first time:
+
+1. **No blog card system existed at all.** No `data-thumbnail` loader in
+   `main.js`, no `images/blog-placeholder.webp`. Mike's cards use a
+   placeholder that JS swaps for the real image; hers cannot. **Her cards use a
+   direct `src` with `loading="lazy"`** — simpler and with no JS dependency.
+   Do not copy Mike's card markup here.
+2. **No `blog-callout` CSS class.** Mike's service pages have one. Hers do
+   not, so the From-the-blog links are an inline-styled paragraph in a
+   `section` of their own.
+3. **Different CSS token names.** She uses `--color-primary`,
+   `--color-secondary`, `--bg-subtle`, `--muted`. Not `--primary` /
+   `--dark` as on the KPW and Mike templates. Anything hardcoded from another
+   site's palette will render wrong.
+
+**HTML indentation is 8 spaces, not 10.** Two scripted edits failed silently on
+an anchor mismatch before this was spotted. Check `cat -A` on a real line
+before writing a match string.
+
+**Blogger images must be uploaded through Blogger.** Verified all three are on
+`blogger.googleusercontent.com`, not `blogger_img_proxy`. The sync script
+aborts rather than writing if it sees a proxy URL — that is the failure that
+produced blank blue tiles on Mike's site.
+
+## Still open
+
+- **She is not in the kpw-agency-brain system yet.** Blog posts here are
+  hand-drafted into `blog-drafts/` and pasted into Blogger. Adding her would
+  automate that, and she already has every account it needs.
+- **Industrial / commercial cleaning.** `salina commercial cleaning` sits at
+  position 19.5 and `industrial cleaning salina ks` pulled 69 impressions.
+  Worth asking whether she does commercial work before building anything.
+- **Give it 3–4 weeks.** The odor page is the one to watch — it is the only
+  page on the site targeting demand that already exists at scale.
+
+---
+
 # 2026-09-07 — GBP IS ON THE SITE BUT INVISIBLE TO VISITORS
 
 **Where the Google Business Profile currently sits: JSON-LD `sameAs` only.**
