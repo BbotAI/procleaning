@@ -1,4 +1,63 @@
 # PROGRESS — Pro Cleaning Services
+
+# 2026-09-07 — GSC PAGE INDEXING: ALL FIVE REPORTS TRIAGED
+
+Five Search Console reports arrived at once. **Four need no code change.** All
+URLs were re-tested live as Googlebot and every real page returns **200**.
+
+| Report | Verdict |
+|---|---|
+| Alternate page with proper canonical (`/index.html`) | cause removed — see below |
+| Blocked by access forbidden 403 (`/contact.html`) | **already resolved** — returns 200, last crawl was 11 Jul, before the fix |
+| Duplicate, Google chose different canonical | **validation already passed** 14 Aug |
+| Not found 404 (`/cdn-cgi/l/email-protection`) | Cloudflare feature, not a page — see below |
+| Discovered, currently not indexed (5 pages) | not a technical fault — see below |
+
+## The one thing fixed: logo linked to index.html
+
+Same trap as `mikeservicesllc.com`. The header logo linked to `index.html` on
+all 10 pages, so every crawl rediscovered a duplicate URL, which Google then
+correctly excluded via the canonical and reported back. Now `href="/"`.
+
+**"Alternate page with proper canonical tag" is not an error.** It means Google
+found a duplicate and honoured the canonical — the tag working. **Requesting
+validation on it will always fail**, because the condition persists while the
+URL is discoverable. Do not request it.
+
+## /cdn-cgi/l/email-protection 404 — leave it alone
+
+Cloudflare's **Email Address Obfuscation** is `on` for this zone (verified via
+API). It rewrites the `mailto:` on `contact.html` into
+`/cdn-cgi/l/email-protection#…`, which Google crawls and finds is not a page.
+The 404 is correct.
+
+Turning obfuscation off would clear the report and expose the real address to
+harvesters, which is the thing the feature exists to prevent. **Not worth the
+trade for one cosmetic 404 on a non-content URL.** Google does not penalise it.
+
+## "Discovered — currently not indexed" on 5 pages
+
+`services`, `service-area`, `deep-cleaning`, `home-cleaning`,
+`germ-prevention`. All verified: file exists, in the sitemap, no `noindex`,
+returns 200 to Googlebot.
+
+Nothing is technically wrong. That status means Google knows about the pages
+and has chosen not to spend crawl budget on them yet — a site-authority and
+demand signal, not a fault. **No code change will move it.** It improves with
+links, content and time, the same levers as everything else.
+
+## Cloudflare bot settings for this zone (recorded for reference)
+
+    security_level   medium
+    browser_check    on
+    challenge_ttl    1800
+
+`browser_check` is the setting most likely behind the historical 403 on
+`contact.html`. It is currently fine — Googlebot gets 200 — so it was left
+alone. See `KPW_PROCLEANING_403_FIX.md` for the original investigation.
+
+---
+
 ## Build date: 2026-06-12
 ## Builder: Kansas Prairie Webworks / Claude Code
 
