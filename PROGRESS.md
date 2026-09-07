@@ -1,5 +1,50 @@
 # PROGRESS — Pro Cleaning Services
 
+# 2026-09-07 — GBP IS ON THE SITE BUT INVISIBLE TO VISITORS
+
+**Where the Google Business Profile currently sits: JSON-LD `sameAs` only.**
+
+    share.google/0VlhTXsW5l7KnwuPC
+
+It appears on all 10 pages, every one of them inside the structured-data
+`sameAs` array. **There is no clickable link, no button and no card anywhere a
+visitor can see or use.** Schema tells Google the profile exists; it does
+nothing for a human on the page.
+
+## How the three sites compare
+
+| Site | GBP on page |
+|---|---|
+| `kansasprairiewebworks.com` | **visible review button** on `index.html` and `contact.html` — `g.page/r/CXAjC182r-F3EAI/review`, styled `btn btn--primary` |
+| `mikeservicesllc.com` | placeholder comment awaiting a profile: `<!-- GOOGLE BUSINESS PROFILE LINK: add anchor tag here … -->` on `index.html:465` and `contact.html:161` |
+| `procleaningsalinaks.com` | **schema only** — nothing visible, and no placeholder slot either |
+
+Pro Cleaning is the odd one out: it *has* a live profile and the site does
+nothing with it. No path for a happy customer to leave a review, and no
+prompt for a visitor to check the ratings before calling.
+
+## Two things to settle before adding it
+
+1. **Which share link is current.** The site carries
+   `share.google/0VlhTXsW5l7KnwuPC`; Kaleb supplied
+   `share.google/OqUMiWhkWi30XWdfU` on 2026-09-07. Both 302 to Google's
+   generic share resolver, which does not expose the destination to a server-
+   side fetch, so **they could not be verified as the same profile from here.**
+   Do not assume — confirm in the GBP dashboard before changing 10 files.
+
+2. **A share link is the wrong tool for reviews.** `share.google/…` opens the
+   profile. The review link is `g.page/r/<PLACE_ID>/review`, which drops the
+   customer straight into the review box — that is what KPW's own site uses,
+   and it is the difference between "have a look at us" and "leave us a
+   review". Get it from the GBP dashboard: Ask for reviews → copy link.
+
+**Recommended once confirmed:** mirror KPW's own pattern — a review button on
+`contact.html` and `index.html`, plus keep the profile URL in `sameAs`. Review
+count and velocity are top-three local-pack factors, and this client has an
+established profile that the site is currently wasting.
+
+---
+
 # 2026-09-07 — GSC PAGE INDEXING: ALL FIVE REPORTS TRIAGED
 
 Five Search Console reports arrived at once. **Four need no code change.** All
