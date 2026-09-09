@@ -1,0 +1,67 @@
+name: Photo sync
+
+# The client picks their website photos in the portal. When they replace one,
+# this puts it on the live site within the hour. That replacement IS the
+# approval — there is no review step, by decision on 2026-09-09.
+#
+# It overwrites image files only. The HTML points at stable filenames and is
+# never touched, so the worst failure here is a stale photo, never a broken
+# page.
+#
+# Needs the KPW_CURATOR_TOKEN repository secret:
+#   Settings -> Secrets and variables -> Actions -> New repository secret
+#   Name: KPW_CURATOR_TOKEN
+#   Value: CURATOR_ACCESS_TOKEN from Apps Script -> Project Settings
+# Without it the job fails loudly on the first step rather than committing
+# nothing and looking healthy.
+
+on:
+  schedule:
+    # Every 30 minutes, offset from blog-sync so the two are not always
+    # committing to this repo in the same minute.
+    - cron: '15,45 * * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Re-publish every slot, ignoring saved state'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: photo-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'   # global fetch(), so no packages to install
+
+      - name: Look for replaced photos
+        id: sync
+        env:
+          KPW_CURATOR_TOKEN: ${{ secrets.KPW_CURATOR_TOKEN }}
+        run: |
+          node .github/scripts/photo-sync.js ${{ inputs.force && '--force' || '' }}
+
+      - name: Commit updated photos
+        if: steps.sync.outputs.changed == 'true'
+        env:
+          COUNT: ${{ steps.sync.outputs.count }}
+          SUMMARY: ${{ steps.sync.outputs.summary }}
+        run: |
+          set -euo pipefail
+          git config user.name  "kpw-photo-sync"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add images/ .github/photo-sync-state.json
+          git commit -m "content: publish ${COUNT} client photo file(s)" \
+                     -m "Slots changed: ${SUMMARY}" \
+                     -m "Added automatically by .github/workflows/photo-sync.yml"
+          git push

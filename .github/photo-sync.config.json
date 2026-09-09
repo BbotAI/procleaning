@@ -1,0 +1,63 @@
+{
+  "_comment": [
+    "Portal slot -> the image file(s) on this site, and the Cloudinary transform.",
+    "",
+    "STATUS 2026-09-09: Pro Cleaning is not in the Agency Brain Clients sheet yet.",
+    "Until the intake form is filled in, getWebsitePhotos has nothing to return and",
+    "this job will report 'Client not found'. That is expected, not a fault.",
+    "",
+    "THE SERVICE SLOT NAMES BELOW ARE PREDICTED, NOT VERIFIED. The portal builds",
+    "them as hero-<slug> from the service name in the Services sheet, lowercased",
+    "with every run of non-alphanumerics replaced by a hyphen. These were derived",
+    "from the service names on the site itself ('Home Cleaning', 'Move In / Move",
+    "Out', 'Germ Prevention'). Whatever gets typed into the intake form is what",
+    "actually decides them, so after intake run:",
+    "",
+    "    node .github/scripts/photo-sync.js --dry-run",
+    "",
+    "It lists the real slots and warns about any slot that has a photo but no",
+    "mapping here. Fix this file against that output before trusting it.",
+    "",
+    "EXTENSIONS ARE NOT UNIFORM on this site: logo and featured-1 are .jpg while",
+    "the heroes are .webp. The transform matches the extension (f_jpg vs f_webp)",
+    "so the file stays honest about its own format, since the server sets",
+    "Content-Type from the extension.",
+    "",
+    "TWO SLOTS ARE DELIBERATELY ABSENT: hero-deep-cleaning and hero-odor-removal.",
+    "Both services currently share one file, images/hero-service-3.jpg, which is",
+    "captioned 'Deep cleaning' on six pages and 'Odor removal' on two, and appears",
+    "TWICE on germ-prevention.html and services.html under both captions. Mapping",
+    "both slots at one file would make them overwrite each other on every run and",
+    "the site would flip between the two photos every thirty minutes. They stay",
+    "unmapped until Odor Removal is given its own file. photo-sync will warn about",
+    "them rather than fail, which is the intended behaviour.",
+    "",
+    "ALSO ABSENT: about-team and blog-placeholder. This site has neither file --",
+    "its blog cards use the real Blogger image directly rather than a placeholder.",
+    "If the client uploads to those slots, photo-sync warns and does nothing."
+  ],
+
+  "clientId": "PRO_CLEANING_SERVICES_LLC",
+
+  "slots": {
+    "hero-home": [
+      { "file": "images/hero-home.webp", "transform": "w_1200,h_675,c_fill,g_auto,f_webp,q_auto:eco" }
+    ],
+    "logo": [
+      { "file": "images/logo.jpg", "transform": "w_960,c_limit,f_jpg,q_80" }
+    ],
+    "featured-1": [
+      { "file": "images/featured-1.jpg", "transform": "w_1200,h_675,c_fill,g_auto,f_jpg,q_auto:eco" }
+    ],
+
+    "hero-home-cleaning": [
+      { "file": "images/hero-service-1.webp", "transform": "w_800,h_525,c_fill,g_auto,f_webp,q_auto:eco" }
+    ],
+    "hero-move-in-move-out": [
+      { "file": "images/hero-service-2.webp", "transform": "w_800,h_525,c_fill,g_auto,f_webp,q_auto:eco" }
+    ],
+    "hero-germ-prevention": [
+      { "file": "images/hero-service-4.webp", "transform": "w_800,h_525,c_fill,g_auto,f_webp,q_auto:eco" }
+    ]
+  }
+}
