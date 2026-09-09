@@ -1,0 +1,58 @@
+name: Blog sync
+
+# Publish a post on Blogger and this puts the card on blog.html within the
+# half hour. Nothing to run by hand.
+#
+# It reads Blogger's PUBLIC feed, so there is no secret to store or rotate,
+# and it never contacts the KPW Agency Brain. If this workflow fails, client
+# posting is unaffected; the only symptom is that a card appears late.
+#
+# GitHub disables scheduled workflows in a repository with no commits for 60
+# days. This job commits whenever a post is published, which normally keeps it
+# alive on its own. If posting ever goes quiet for two months, re-enable it
+# from the Actions tab.
+
+on:
+  schedule:
+    # Every 30 minutes. GitHub queues cron on a best-effort basis and can run
+    # it late under load, so treat this as "within the hour", not to the minute.
+    - cron: '*/30 * * * *'
+  workflow_dispatch:          # Actions tab -> Blog sync -> Run workflow
+
+permissions:
+  contents: write             # the only permission it needs: commit blog.html
+
+concurrency:
+  # Two overlapping runs would both see the same post as new and could add it
+  # twice. Let a run finish before the next begins.
+  group: blog-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'   # global fetch(), so the script needs no packages
+
+      - name: Look for new posts
+        id: sync
+        run: node .github/scripts/blog-sync.js
+
+      - name: Commit new cards
+        if: steps.sync.outputs.changed == 'true'
+        env:
+          COUNT: ${{ steps.sync.outputs.count }}
+          SUMMARY: ${{ steps.sync.outputs.summary }}
+        run: |
+          set -euo pipefail
+          git config user.name  "kpw-blog-sync"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add blog.html
+          git commit -m "content: add ${COUNT} new blog post(s) from Blogger" \
+                     -m "${SUMMARY}" \
+                     -m "Added automatically by .github/workflows/blog-sync.yml"
+          git push

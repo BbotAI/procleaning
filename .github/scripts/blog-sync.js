@@ -1,0 +1,327 @@
+#!/usr/bin/env node
+/**
+ * blog-sync — add newly published Blogger posts to blog.html as cards.
+ *
+ * Runs unattended in GitHub Actions. Publish on Blogger, and within the cron
+ * interval the card appears on the site. Nothing to run by hand.
+ *
+ * ── WHY THE PUBLIC FEED, NOT THE BLOGGER API ──────────────────────────────
+ *
+ * Cards only ever show LIVE posts on a public blog, and <blog>/feeds/posts/
+ * default?alt=json serves exactly that with no credential. The Blogger v3 API
+ * needs OAuth, and the old manual workflow borrowed a token out of the
+ * operator's local ~/.clasprc.json, which cannot work in CI and would have
+ * meant a long-lived secret in every client repo. The feed removes it
+ * entirely. Drafts stay invisible, which is correct.
+ *
+ * This never touches the KPW Agency Brain: it does not call it, import from
+ * it, deploy it, or read its Script Properties. The Agency Brain publishes to
+ * Blogger; this reads Blogger. A failure here cannot affect client posting.
+ *
+ * ── WHY IT IS TEMPLATE-DRIVEN ─────────────────────────────────────────────
+ *
+ * The three live sites do NOT share card markup. KPW uses
+ * `service-card blog-card` with a placeholder src and a data-thumbnail;
+ * Pro Cleaning uses a bare `service-card` with a `service-media` wrapper and
+ * the real image in src; and they order the anchor's attributes differently
+ * (`href` then `class` on one, `class` then `href` on the other).
+ *
+ * A single hardcoded card renderer would therefore produce foreign-looking
+ * markup on two of three sites, and a regex written against one site's anchor
+ * silently matches nothing on the other, which means it reports every post as
+ * new and duplicates the whole page. So each repo owns:
+ *
+ *   .github/blog-card.template.html   its own card markup, with {{FIELDS}}
+ *   <!-- BLOG-CARDS:START -->         in blog.html, where new cards go
+ *
+ * and this script is byte-identical everywhere.
+ *
+ * ── THE MATCHING RULE THAT MATTERS ────────────────────────────────────────
+ *
+ * A post counts as already present if any <article> block on the page links
+ * to its FULL URL. Matching is a string comparison, never a slug pattern:
+ * Blogger appends a numeric suffix on a permalink collision, e.g.
+ *   .../2026/07/mobile-app-vs-better-website-kansas-business_01643798843.html
+ * and a tidy-looking /[a-z0-9-]+\.html/ misses it without erroring. The KPW
+ * blog already contains one of those. Titles are never matched on: they get
+ * edited on Blogger after publication, permalinks do not.
+ *
+ * ── TEMPLATE FIELDS ───────────────────────────────────────────────────────
+ *
+ *   {{SLOT}}        the BLOG-n number for the slot comment
+ *   {{URL}}         post permalink
+ *   {{TITLE}}       post title, HTML-escaped
+ *   {{DATE}}        "September 6, 2026"
+ *   {{DATE_ISO}}    "2026-09-06"
+ *   {{EXCERPT}}     first sentences, HTML-escaped
+ *   {{IMAGE}}       Blogger image URL at card size, or the placeholder
+ *   {{ALT}}         "<title> &mdash; <site name>", HTML-escaped
+ *
+ * Usage:  node .github/scripts/blog-sync.js [--dry-run]
+ * Writes changed/count/summary to $GITHUB_OUTPUT for the workflow.
+ */
+
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+
+const REPO = path.resolve(__dirname, '..', '..');
+const BLOG_HTML = path.join(REPO, 'blog.html');
+const AGENT_MD = path.join(REPO, 'BLOG_AGENT.md');
+const TEMPLATE = path.join(__dirname, '..', 'blog-card.template.html');
+const MARKER = '<!-- BLOG-CARDS:START -->';
+const DRY = process.argv.includes('--dry-run');
+
+const die = m => { console.error('blog-sync: ' + m); process.exit(1); };
+
+// ── config ────────────────────────────────────────────────────────────────
+
+function blogUrl() {
+  if (!fs.existsSync(AGENT_MD)) die('BLOG_AGENT.md not found in ' + REPO);
+  const m = /##\s*THIS SITE'S BLOG\s*\n+\s*(\S+)/.exec(fs.readFileSync(AGENT_MD, 'utf8'));
+  if (!m) die("no 'THIS SITE'S BLOG' URL in BLOG_AGENT.md");
+  const url = m[1].replace(/\/+$/, '');
+  if (/CLIENT_DOMAIN|example\.com|\[/.test(url)) die('BLOG_AGENT.md still has the placeholder blog URL: ' + url);
+  if (!/^https?:\/\//.test(url)) die('blog URL is not absolute: ' + url);
+  return url;
+}
+
+// ── feed ──────────────────────────────────────────────────────────────────
+
+/** Blogger has no cursor; page with the 1-based start-index until short. */
+async function fetchAllPosts(blog) {
+  const PAGE = 150;
+  const out = [];
+  for (let start = 1; start < 5000; start += PAGE) {
+    const u = `${blog}/feeds/posts/default?alt=json&max-results=${PAGE}&start-index=${start}`;
+    const res = await fetch(u, { headers: { 'User-Agent': 'kpw-blog-sync' } });
+    if (!res.ok) die(`feed returned ${res.status} for ${u}`);
+    const entries = ((await res.json()).feed || {}).entry || [];
+    out.push(...entries);
+    if (entries.length < PAGE) break;
+  }
+  return out;
+}
+
+const alternate = e => {
+  const l = (e.link || []).find(x => x.rel === 'alternate');
+  return l ? l.href.split('#')[0].split('?')[0] : null;
+};
+
+/** Blogger encodes the requested size as the path segment before the file. */
+const sized = (u, spec) => u ? u.replace(/\/[sw]\d+[^/]*\/([^/]+)$/, `/${spec}/$1`) : null;
+
+const firstBodyImage = html => {
+  const m = /<img[^>]+src=["']([^"']+)["']/i.exec(html || '');
+  return m ? m[1] : null;
+};
+
+// ── text ──────────────────────────────────────────────────────────────────
+
+const ENT = { '&nbsp;': ' ', '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"',
+              '&#39;': "'", '&rsquo;': '’', '&lsquo;': '‘',
+              '&ldquo;': '“', '&rdquo;': '”', '&mdash;': '—',
+              '&ndash;': '–', '&hellip;': '…' };
+
+function plainText(html) {
+  let t = String(html || '')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ');
+  t = t.replace(/&[a-z#0-9]+;/gi, x => ENT[x.toLowerCase()] !== undefined ? ENT[x.toLowerCase()] : x);
+  return t.replace(/\s+/g, ' ').trim();
+}
+
+/** Trim to a real sentence boundary, never mid-word and never mid-sentence. */
+function excerpt(text, max = 300) {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const stop = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
+  if (stop > 80) return cut.slice(0, stop + 1);
+  const sp = cut.lastIndexOf(' ');
+  return cut.slice(0, sp > 0 ? sp : max) + '…';
+}
+
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+const pretty = s => esc(s)
+  .replace(/’/g, '&rsquo;').replace(/‘/g, '&lsquo;')
+  .replace(/“/g, '&ldquo;').replace(/”/g, '&rdquo;')
+  .replace(/—/g, '&mdash;').replace(/–/g, '&ndash;')
+  .replace(/…/g, '&hellip;');
+
+const MONTHS = ['January','February','March','April','May','June','July',
+                'August','September','October','November','December'];
+
+/**
+ * Format the date WITHOUT going through a Date object. Blogger returns an ISO
+ * string carrying the blog's own offset; `new Date(...)` then renders in the
+ * runner's timezone, and a GitHub runner is UTC while these blogs are on
+ * Central. An evening post would show tomorrow's date. Read the parts off the
+ * string exactly as the blog recorded them.
+ */
+function prettyDate(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+  return m ? `${MONTHS[Number(m[2]) - 1]} ${Number(m[3])}, ${m[1]}` : '';
+}
+const isoDate = iso => (/^(\d{4}-\d{2}-\d{2})/.exec(String(iso || '')) || [, ''])[1];
+
+// ── learn house details from cards already on the page ────────────────────
+
+function inferStyle(html) {
+  const s = { altSuffix: null, placeholder: null, author: null, authorUrl: null,
+              publisher: null, publisherUrl: null };
+
+  const alt = /alt="[^"]*&mdash;\s*([^"]+)"/.exec(html);
+  if (alt) s.altSuffix = alt[1].trim();
+
+  const ph = /<img[^>]*\ssrc="([^"]*placeholder[^"]*)"/i.exec(html);
+  if (ph) s.placeholder = ph[1];
+
+  const a = /"author":\s*\{\s*"@type":\s*"Person",\s*"name":\s*"([^"]+)",\s*"url":\s*"([^"]+)"/.exec(html);
+  if (a) { s.author = a[1]; s.authorUrl = a[2]; }
+  const p = /"publisher":\s*\{\s*"@type":\s*"Organization",\s*"name":\s*"([^"]+)",\s*"url":\s*"([^"]+)"/.exec(html);
+  if (p) { s.publisher = p[1]; s.publisherUrl = p[2]; }
+  return s;
+}
+
+/**
+ * Every post URL already linked from a card. Scans <article> blocks so a link
+ * in the page's intro copy is not mistaken for a card, and is indifferent to
+ * attribute order, which differs between these sites.
+ */
+function existingUrls(html, blog) {
+  const urls = new Set();
+  for (const m of html.matchAll(/<article\b[\s\S]*?<\/article>/gi)) {
+    for (const h of m[0].matchAll(/href="([^"]+)"/gi)) {
+      const u = h[1].split('#')[0].split('?')[0];
+      if (u.startsWith(blog)) urls.add(u);
+    }
+  }
+  return urls;
+}
+
+// ── render ────────────────────────────────────────────────────────────────
+
+function render(tpl, post, slot, style) {
+  const alt = style.altSuffix ? `${post.title} — ${style.altSuffix}` : post.title;
+  const map = {
+    SLOT: String(slot),
+    URL: esc(post.url),
+    TITLE: pretty(post.title),
+    DATE: esc(post.dateLabel),
+    DATE_ISO: esc(post.dateIso),
+    EXCERPT: pretty(post.excerpt),
+    IMAGE: esc(post.image || style.placeholder || ''),
+    ALT: pretty(alt)
+  };
+  return tpl.replace(/\{\{([A-Z_]+)\}\}/g, (whole, key) => {
+    if (!(key in map)) die(`template uses {{${key}}}, which this script does not provide`);
+    return map[key];
+  }).replace(/\s+$/, '');
+}
+
+function schema(post, style) {
+  const o = { '@context': 'https://schema.org', '@type': 'BlogPosting',
+              headline: post.title, description: excerpt(post.plain, 200),
+              url: post.url, datePublished: post.dateIso };
+  if (style.author) o.author = { '@type': 'Person', name: style.author, url: style.authorUrl };
+  if (style.publisher) o.publisher = { '@type': 'Organization', name: style.publisher, url: style.publisherUrl };
+  o.mainEntityOfPage = { '@type': 'WebPage', '@id': post.url };
+  return '  <script type="application/ld+json">\n' +
+         JSON.stringify(o, null, 2).split('\n').map(l => '  ' + l).join('\n') +
+         '\n  </script>';
+}
+
+// ── main ──────────────────────────────────────────────────────────────────
+
+(async () => {
+  if (!fs.existsSync(BLOG_HTML)) die('blog.html not found in ' + REPO);
+  if (!fs.existsSync(TEMPLATE)) die('missing .github/blog-card.template.html — see the header of this file');
+
+  const blog = blogUrl();
+  let tpl = fs.readFileSync(TEMPLATE, 'utf8');
+
+  // The image size is declared by the template, not guessed from the page.
+  // Inferring it was tried and removed: these blogs carry a mix of s720,
+  // s1280, w640-h640 and w640-h427 from years of hand-made cards, so "reuse
+  // what is already there" just picks whichever image sorts first in the file.
+  // Ask for the size this site's card actually renders at.
+  const DEFAULT_SPEC = 'w640-h400-c';
+  const dir = /<!--\s*blog-sync:\s*image=([\w-]+)\s*-->[^\S\n]*\n?/i.exec(tpl);
+  const imageSpec = dir ? dir[1] : DEFAULT_SPEC;
+  if (dir) tpl = tpl.replace(dir[0], '');
+  tpl = tpl.replace(/\s+$/, '');
+  console.log(`blog-sync: card image size ${imageSpec}${dir ? '' : ' (default)'}`);
+  let html = fs.readFileSync(BLOG_HTML, 'utf8');
+
+  if (!html.includes(MARKER)) {
+    die(`blog.html has no ${MARKER} marker. Put it on its own line immediately ` +
+        'before the first card, inside the card container.');
+  }
+
+  const style = inferStyle(html);
+  const existing = existingUrls(html, blog);
+  const entries = await fetchAllPosts(blog);
+  console.log(`blog-sync: ${entries.length} live post(s) at ${blog}, ${existing.size} already carded`);
+
+  const fresh = [];
+  for (const e of entries) {
+    const url = alternate(e);
+    if (!url || existing.has(url)) continue;
+    const body = (e.content && e.content.$t) || (e.summary && e.summary.$t) || '';
+    const plain = plainText(body);
+    const raw = (e.media$thumbnail && e.media$thumbnail.url) || firstBodyImage(body);
+    fresh.push({
+      url,
+      title: plainText((e.title && e.title.$t) || 'Untitled'),
+      dateIso: isoDate(e.published && e.published.$t),
+      dateLabel: prettyDate(e.published && e.published.$t),
+      image: sized(raw, imageSpec),
+      plain,
+      excerpt: excerpt(plain)
+    });
+  }
+
+  const gh = process.env.GITHUB_OUTPUT;
+  const report = (changed, count = 0, summary = '') => {
+    if (gh) fs.appendFileSync(gh, `changed=${changed}\ncount=${count}\nsummary=${summary}\n`);
+  };
+
+  if (!fresh.length) {
+    console.log('blog-sync: no new posts. Nothing changed.');
+    return report(false);
+  }
+
+  // Newest first across the whole grid, which is the convention on all sites.
+  fresh.sort((a, b) => (b.dateIso || '').localeCompare(a.dateIso || ''));
+  fresh.forEach(p => console.log(`  + ${p.dateIso}  ${p.title}`));
+
+  const cards = fresh.map((p, i) => render(tpl, p, i + 1, style)).join('\n');
+  html = html.replace(MARKER, MARKER + '\n' + cards);
+
+  // Keep BLOG-n in document order. Sites without slot comments are unaffected.
+  let n = 0;
+  html = html.replace(/<!-- BLOG-\d+ -->/g, () => `<!-- BLOG-${++n} -->`);
+
+  // JSON-LD only where the page already carries some, so a site that never
+  // adopted per-post schema is not silently given a different head shape.
+  const firstLd = html.indexOf('  <script type="application/ld+json">');
+  if (firstLd !== -1 && (style.author || style.publisher)) {
+    const blocks = fresh.map(p => schema(p, style)).join('\n');
+    html = html.slice(0, firstLd) + blocks + '\n' + html.slice(firstLd);
+  } else {
+    console.log('blog-sync: no per-post JSON-LD on this page, skipped schema');
+  }
+
+  if (DRY) {
+    console.log(`blog-sync: --dry-run, not writing. Would add ${fresh.length} card(s).`);
+    return report(false, fresh.length);
+  }
+
+  fs.writeFileSync(BLOG_HTML, html);
+  console.log(`blog-sync: added ${fresh.length} card(s) to blog.html`);
+  report(true, fresh.length, fresh.map(p => p.title).join('; ').slice(0, 200));
+})().catch(e => die(e && e.stack ? e.stack : String(e)));
