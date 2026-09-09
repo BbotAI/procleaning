@@ -1,3 +1,17 @@
+/* ============================================================
+   CACHE BUSTING — bump the version when you edit this file.
+
+   Every page links this as styles.css?v=N. GitHub Pages serves it with a
+   long cache lifetime, so a returning visitor keeps the copy they already
+   have until the URL changes. Editing this file without bumping N means the
+   change is live for new visitors and invisible to everyone else, which
+   reads as "the fix did not work" rather than "the fix is cached".
+
+   To bump: change every styles.css?v=N across *.html in one pass, e.g.
+       sed -i 's/styles\.css?v=1/styles.css?v=2/g' *.html
+   The same applies to main.js?v=N and blog-pagination.js?v=N.
+   ============================================================ */
+
 /* Kansas Prairie Webworks — Tier 4 Template */
 /* Client: Pro Cleaning Services — Jennifer Diehl */
 
