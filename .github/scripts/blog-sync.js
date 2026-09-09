@@ -133,12 +133,35 @@ function plainText(html) {
   return t.replace(/\s+/g, ' ').trim();
 }
 
-/** Trim to a real sentence boundary, never mid-word and never mid-sentence. */
-function excerpt(text, max = 300) {
+/**
+ * Take whole sentences up to `max`.
+ *
+ * An earlier version cut at `max` and then backed up to the last sentence
+ * boundary. On a post whose opening sentence is short and whose second one is
+ * long, that returned the first sentence alone, which reads clipped next to
+ * the hand-written cards around it. Accumulating instead gives two or three
+ * sentences, which is what the existing cards look like.
+ *
+ * A single opening sentence longer than `max` is word-cut with an ellipsis,
+ * never mid-word.
+ *
+ * 340 is measured, not guessed: the hand-written excerpts already on the three
+ * sites run a median of 237-271 characters and up to 429. A 300 cap cut the
+ * common two-sentence opening one sentence short.
+ */
+function excerpt(text, max = 340) {
   if (text.length <= max) return text;
+  const parts = text.match(/[^.!?]+[.!?]+(?:\s|$)/g);
+  if (parts) {
+    let out = '';
+    for (const p of parts) {
+      if ((out + p).trim().length > max) break;
+      out += p;
+    }
+    out = out.trim();
+    if (out.length >= 60) return out;
+  }
   const cut = text.slice(0, max);
-  const stop = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
-  if (stop > 80) return cut.slice(0, stop + 1);
   const sp = cut.lastIndexOf(' ');
   return cut.slice(0, sp > 0 ? sp : max) + '…';
 }
@@ -174,8 +197,11 @@ function inferStyle(html) {
   const s = { altSuffix: null, placeholder: null, author: null, authorUrl: null,
               publisher: null, publisherUrl: null };
 
+  // Decode the captured suffix. It is read straight out of the page, so on
+  // Mike's it arrives as "Mike&rsquo;s Services LLC"; re-escaping that on the
+  // way back out would render a literal "Mike&amp;rsquo;s".
   const alt = /alt="[^"]*&mdash;\s*([^"]+)"/.exec(html);
-  if (alt) s.altSuffix = alt[1].trim();
+  if (alt) s.altSuffix = plainText(alt[1]).trim();
 
   const ph = /<img[^>]*\ssrc="([^"]*placeholder[^"]*)"/i.exec(html);
   if (ph) s.placeholder = ph[1];

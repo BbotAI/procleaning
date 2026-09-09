@@ -9,6 +9,97 @@
 ## THIS SITE'S BLOG
 https://blog.procleaningsalinaks.com
 
+---
+
+## AUTOMATED SINCE 2026-09-09 — you usually do not need this document
+
+Publishing on Blogger is now the whole job. A GitHub Action in this repo,
+`.github/workflows/blog-sync.yml`, checks the blog every 30 minutes and
+commits any new post as a card. GitHub Pages redeploys. Nothing to run.
+
+**Watch it:** the repo's Actions tab, workflow "Blog sync".
+**Force a run:** Actions -> Blog sync -> Run workflow.
+**Run it locally:** `node .github/scripts/blog-sync.js --dry-run`
+
+### What it touches, and what it cannot
+
+It reads Blogger's **public feed**, so there is no API key, no OAuth, no
+secret in this repo, and nothing to rotate. It writes one file, `blog.html`.
+
+It does **not** contact the KPW Agency Brain: no Apps Script call, no clasp
+push, no version consumed, no deployment redeployed. The Agency Brain writes
+to Blogger and this reads Blogger. If this job breaks, client posting is
+unaffected and the only symptom is a card arriving late.
+
+Drafts never appear, because the feed only carries published posts. That is
+the intended behaviour, not a limitation.
+
+### The three things a repo needs
+
+| Thing | Where | Notes |
+|---|---|---|
+| Blog URL | `THIS SITE'S BLOG` below | the only client-specific value |
+| Card markup | `.github/blog-card.template.html` | this site's own card, with `{{FIELDS}}` |
+| Insertion point | `<!-- BLOG-CARDS:START -->` in `blog.html` | on its own line, immediately before the first card |
+
+**The card template is per-site on purpose.** The live sites do not share
+card markup: KPW and Mike's use `service-card blog-card` with a placeholder
+`src` and a `data-thumbnail`, Pro Cleaning uses a bare `service-card` with a
+`service-media` wrapper and the real image in `src`, and they order the
+anchor's attributes differently. One hardcoded renderer would produce foreign
+markup on two sites out of three.
+
+Template fields: `{{SLOT}}`, `{{URL}}`, `{{TITLE}}`, `{{DATE}}`,
+`{{DATE_ISO}}`, `{{EXCERPT}}`, `{{IMAGE}}`, `{{ALT}}`. The first line may
+carry `<!-- blog-sync: image=w800 -->` to set the Blogger image size.
+
+**Ask Blogger for width only, no `-c` crop.** The card CSS already crops with
+`object-fit: cover`, so requesting a crop as well crops twice, and Blogger's
+centre-crop shears the sides off a text-banner hero. This was observed on Pro
+Cleaning: three card images lost the first character of every headline.
+
+### How a post is recognised as already present
+
+By its **full URL**, compared as a string, found inside an `<article>` block.
+Never by a slug pattern and never by title.
+
+Blogger appends a numeric suffix when a permalink collides. The KPW blog
+already contains one:
+
+    .../2026/07/mobile-app-vs-better-website-kansas-business_01643798843.html
+
+A tidy-looking `[a-z0-9-]+\.html` does not match that, does not error, and
+would re-add the post as a duplicate card. Titles are excluded because they
+get edited on Blogger after publication; permalinks do not.
+
+### Setting this up for a new client
+
+1. Copy `.github/` from `KPW-TIER4-TEMPLATE` into the new client repo.
+2. Set `THIS SITE'S BLOG` below to the client's blog URL.
+3. Replace `.github/blog-card.template.html` with that site's own card
+   markup, swapping the content for `{{FIELDS}}`.
+4. Add `<!-- BLOG-CARDS:START -->` to `blog.html` immediately before the
+   first card.
+5. Run `node .github/scripts/blog-sync.js --dry-run` and read the output.
+6. Verify the template by deleting the newest card and re-running: it should
+   come back byte-identical.
+
+### If it stops running
+
+GitHub disables scheduled workflows in a repository with no commits for 60
+days. This job commits whenever a post is published, which normally keeps
+itself alive. If posting goes quiet for two months, re-enable it from the
+Actions tab.
+
+---
+
+## THE MANUAL WORKFLOW BELOW IS THE FALLBACK
+
+Everything from here down is the original hand-run procedure. It still works
+and is worth reading to understand what the automation does. Use it when the
+Action is broken, when a card needs repairing by hand, or when a site has not
+been set up for the Action yet.
+
 ## HOW TO USE
 Open Claude Code in this site's repo and say something like:
   "Add my new blogs" / "Check for new blog posts" / "Sync blog cards"
