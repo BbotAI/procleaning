@@ -23,14 +23,17 @@
     "so the file stays honest about its own format, since the server sets",
     "Content-Type from the extension.",
     "",
-    "TWO SLOTS ARE DELIBERATELY ABSENT: hero-deep-cleaning and hero-odor-removal.",
-    "Both services currently share one file, images/hero-service-3.jpg, which is",
-    "captioned 'Deep cleaning' on six pages and 'Odor removal' on two, and appears",
-    "TWICE on germ-prevention.html and services.html under both captions. Mapping",
-    "both slots at one file would make them overwrite each other on every run and",
-    "the site would flip between the two photos every thirty minutes. They stay",
-    "unmapped until Odor Removal is given its own file. photo-sync will warn about",
-    "them rather than fail, which is the intended behaviour.",
+    "FIXED 2026-09-09: Deep Cleaning and Odor Removal used to share one file,",
+    "images/hero-service-3.jpg. It was captioned 'Deep cleaning' on six pages and",
+    "'Odor removal' on two, and appeared twice on germ-prevention.html and",
+    "services.html under both captions -- the same photo shown for two different",
+    "services, side by side, on the live site. Odor Removal now has its own",
+    "images/hero-service-5.jpg, so all five services map to their own file.",
+    "",
+    "That mattered beyond tidiness: two slots pointed at one file would overwrite",
+    "each other every run and the site would flip between the two photos every",
+    "thirty minutes. If a future client site is ever one image file short of its",
+    "service count, fix the site before mapping the slots.",
     "",
     "ALSO ABSENT: about-team and blog-placeholder. This site has neither file --",
     "its blog cards use the real Blogger image directly rather than a placeholder.",
@@ -58,6 +61,12 @@
     ],
     "hero-germ-prevention": [
       { "file": "images/hero-service-4.webp", "transform": "w_800,h_525,c_fill,g_auto,f_webp,q_auto:eco" }
+    ],
+    "hero-deep-cleaning": [
+      { "file": "images/hero-service-3.jpg", "transform": "w_800,h_525,c_fill,g_auto,f_jpg,q_auto:eco" }
+    ],
+    "hero-odor-removal": [
+      { "file": "images/hero-service-5.jpg", "transform": "w_800,h_525,c_fill,g_auto,f_jpg,q_auto:eco" }
     ]
   }
 }
