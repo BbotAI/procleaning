@@ -1,3 +1,10 @@
+// CACHE NOTE, 2026-09-09: this file is linked as main.js?v=N and Cloudflare
+// caches each versioned URL for four hours. v=2 was skipped because it was
+// requested repeatedly while the deploy was still landing, which cached the
+// PRE-deploy file under that exact URL: the site kept serving four service
+// cards even though origin had five. Never poll a versioned asset URL while
+// waiting for a deploy. If it happens, bump to the next N rather than waiting
+// out the TTL — a URL nobody has requested goes straight to origin.
 const services = [
   {
     name: "Home Cleaning",
