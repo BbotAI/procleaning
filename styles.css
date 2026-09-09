@@ -374,3 +374,24 @@ img { max-width: 100%; height: auto; display: block; }
 }
 
 @media (min-width: 769px) { .scroll-top { bottom: 30px; right: 30px; } }
+
+
+/* ── Blog pagination ──────────────────────────────────────────────────────
+   Driven by blog-pagination.js, which activates only on a grid carrying
+   data-blog-pager. The hide class needs !important: .service-card sets
+   display:flex at the same specificity and later in this file, so a plain
+   display:none rule (or the [hidden] attribute) loses to it. */
+.blog-pager-hide { display: none !important; }
+.blog-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; margin: 32px auto 0; }
+.blog-pager__btn { font-family: Poppins, Inter, sans-serif; font-size: .9rem; font-weight: 600; line-height: 1; color: var(--text); background: var(--bg); border: 1.5px solid rgba(24,30,38,.18); border-radius: 6px; padding: 10px 13px; min-width: 42px; transition: background .15s ease, border-color .15s ease, color .15s ease; }
+.blog-pager__btn:hover:not(:disabled) { border-color: var(--color-secondary); color: var(--color-secondary); }
+.blog-pager__btn:focus-visible { outline: 2px solid var(--color-secondary); outline-offset: 2px; }
+.blog-pager__btn.is-active { background: var(--color-secondary); border-color: var(--color-secondary); color: #fff; }
+.blog-pager__btn:disabled { opacity: .4; cursor: default; }
+.blog-pager__btn--edge { padding-left: 16px; padding-right: 16px; }
+.blog-pager__gap { padding: 0 4px; color: var(--muted); }
+@media (max-width: 520px) {
+  .blog-pager { gap: 4px; }
+  .blog-pager__btn { padding: 9px 11px; min-width: 38px; font-size: .85rem; }
+  .blog-pager__btn--edge { padding-left: 13px; padding-right: 13px; }
+}
