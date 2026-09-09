@@ -1,0 +1,24 @@
+# GitHub Pages / Jekyll build config.
+#
+# There is no .nojekyll here, so GitHub runs Jekyll over the repo and
+# publishes everything it is not told to exclude. Every internal markdown doc
+# in this folder was therefore being served on the live domain, and
+# robots.txt allows all crawlers, GPTBot and ClaudeBot included.
+#
+# These files still belong in the repo. blog-sync reads BLOG_AGENT.md from
+# the checkout and the rest are the working record. Excluding them keeps them
+# in git and out of the published site.
+#
+# .gitignore does NOT do this job: it only affects untracked files, and these
+# were committed long ago.
+#
+# Add any new internal doc here. Do not exclude robots.txt, llms.txt,
+# sitemap.xml, CNAME, or any directory the site actually serves.
+
+exclude:
+  - "*.md"
+  - "*.md.txt"
+  - .claude/
+  - .github/
+  - blog-drafts/
+  - images/_originals/
