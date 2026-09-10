@@ -8,12 +8,10 @@ name: Photo sync
 # never touched, so the worst failure here is a stale photo, never a broken
 # page.
 #
-# Needs the KPW_CURATOR_TOKEN repository secret:
-#   Settings -> Secrets and variables -> Actions -> New repository secret
-#   Name: KPW_CURATOR_TOKEN
-#   Value: CURATOR_ACCESS_TOKEN from Apps Script -> Project Settings
-# Without it the job fails loudly on the first step rather than committing
-# nothing and looking healthy.
+# No secret, no setup. The endpoint it reads returns only Cloudinary URLs
+# that are already served on the client's own public website, so it needs no
+# credential. A token was briefly required on 2026-09-09 and removed the next
+# day: it protected nothing and cost a repository secret in every client repo.
 
 on:
   schedule:
@@ -46,8 +44,6 @@ jobs:
 
       - name: Look for replaced photos
         id: sync
-        env:
-          KPW_CURATOR_TOKEN: ${{ secrets.KPW_CURATOR_TOKEN }}
         run: |
           node .github/scripts/photo-sync.js ${{ inputs.force && '--force' || '' }}
 

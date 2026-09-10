@@ -102,20 +102,18 @@ const readJson = (p, fallback) => {
   if (!cfg.clientId) die('config has no clientId');
   if (!cfg.slots || !Object.keys(cfg.slots).length) die('config has no slots');
 
-  const token = process.env.KPW_CURATOR_TOKEN;
-  if (!token) {
-    skip('KPW_CURATOR_TOKEN is not set. Add it under Settings -> Secrets and ' +
-         'variables -> Actions, value from Apps Script -> Project Settings -> ' +
-         'CURATOR_ACCESS_TOKEN. Nothing will publish until then.');
-  }
+  // No credential needed, and no repository secret to set. Every URL this
+  // returns is a Cloudinary image already served on the client's own public
+  // website, so requiring a token here protected nothing while costing a
+  // secret in every client repo. Briefly required 2026-09-09, removed
+  // 2026-09-10 along with the gate on the endpoint itself.
 
   const res = await fetch(ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       action: 'getWebsitePhotos',
-      clientId: cfg.clientId,
-      curatorToken: token
+      clientId: cfg.clientId
     }),
     redirect: 'follow'
   });
@@ -123,8 +121,9 @@ const readJson = (p, fallback) => {
 
   let payload;
   try { payload = await res.json(); } catch (e) { die('endpoint did not return JSON'); }
-  // A rejected token is a real fault: something is set, and it is wrong.
-  if (payload.error === 'Unauthorized') die('token rejected — KPW_CURATOR_TOKEN is set but not accepted');
+  // Unauthorized here would mean the endpoint was re-gated without this
+  // script being updated, which is a real fault rather than a config gap.
+  if (payload.error === 'Unauthorized') die('endpoint rejected the request — getWebsitePhotos appears to be gated again');
   // Not being in the Clients sheet yet is not: the intake form has not been
   // filled in. Pro Cleaning sits in exactly this state.
   if (!payload.success && /not found/i.test(String(payload.error || ''))) {
