@@ -111,13 +111,39 @@ async function fetchAllPosts(blog) {
   const out = [];
   for (let start = 1; start < 5000; start += PAGE) {
     const u = `${blog}/feeds/posts/default?alt=json&max-results=${PAGE}&start-index=${start}`;
-    const res = await fetch(u, { headers: { 'User-Agent': 'kpw-blog-sync' } });
-    if (!res.ok) die(`feed returned ${res.status} for ${u}`);
+    const res = await fetchRetry(u, { headers: { 'User-Agent': 'kpw-blog-sync' } }, 'Blogger feed');
     const entries = ((await res.json()).feed || {}).entry || [];
     out.push(...entries);
     if (entries.length < PAGE) break;
   }
   return out;
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/**
+ * fetch() with retries. This polls Blogger 48 times a day; a single transient
+ * blip should not be a failed job and an email. A 4xx is not retried, since
+ * that is structural. A 5xx or a dropped connection is retried, then skipped:
+ * an upstream outage is not actionable and the next run picks it up.
+ */
+async function fetchRetry(url, opts, label) {
+  const delays = [2000, 6000];
+  for (let attempt = 0; ; attempt++) {
+    let res, err;
+    try { res = await fetch(url, opts); } catch (e) { err = e; }
+    if (res && res.ok) return res;
+    if (res && res.status >= 400 && res.status < 500) {
+      die(`${label}: HTTP ${res.status} — not retrying, that is a real error`);
+    }
+    const why = err ? err.message : 'HTTP ' + res.status;
+    if (attempt >= delays.length) {
+      skip(`${label} unavailable after ${attempt + 1} attempts (${why}). ` +
+           'Transient upstream problem — the next run will retry.');
+    }
+    console.log(`blog-sync: ${label} ${why}, retrying in ${delays[attempt] / 1000}s`);
+    await sleep(delays[attempt]);
+  }
 }
 
 const alternate = e => {

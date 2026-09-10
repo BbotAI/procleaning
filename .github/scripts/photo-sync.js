@@ -31,12 +31,16 @@
  * client activity writes nothing and makes no commit. Delete the state file
  * to force a full re-publish.
  *
- * ── AUTH ──────────────────────────────────────────────────────────────────
+ * ── NO CREDENTIAL, AND NO REPOSITORY SECRET ───────────────────────────────
  *
- * Reads a purpose-built, token-gated endpoint that returns four fields per
- * slot. It deliberately does not call getClient, which returns 242 fields
- * including the client's email address — a build job has no business
- * receiving any of that. Needs KPW_CURATOR_TOKEN as a repository secret.
+ * Reads a purpose-built endpoint returning four fields per slot. It
+ * deliberately does not call getClient, which returns 242 fields including
+ * the client's email address — a build job has no business receiving that.
+ *
+ * It needs no token. Every URL it returns is a Cloudinary image already
+ * served on the client's own public website, so a gate here protected
+ * nothing while costing a secret in every client repo. Briefly required
+ * 2026-09-09, removed 2026-09-10 along with the gate on the endpoint.
  *
  * Usage:  node .github/scripts/photo-sync.js [--dry-run] [--force]
  */
@@ -50,8 +54,7 @@ const REPO = path.resolve(__dirname, '..', '..');
 const CONFIG = path.join(__dirname, '..', 'photo-sync.config.json');
 const STATE = path.join(__dirname, '..', 'photo-sync-state.json');
 // Overridable so the mapping and download path can be exercised against a
-// local stub without holding the real token. Unset in CI, which uses the
-// live endpoint.
+// local stub. Unset in CI, which uses the live endpoint.
 const ENDPOINT = process.env.PHOTO_SYNC_ENDPOINT ||
   'https://script.google.com/macros/s/AKfycbxnHiCoiuJSBcDp5yIdE-oBSh57wS4hXqUKGrvk7bxe-8UpD7cNfejpTeJIjxwF4XIz/exec';
 
@@ -68,9 +71,10 @@ const die = m => { console.error('photo-sync: ' + m); process.exit(1); };
  * form would do that indefinitely until the noise trained everyone to ignore
  * it, including the run that actually broke.
  *
- * Genuine faults still exit 1: a 5xx from the endpoint, a rejected token
- * (that means a WRONG value, not a missing one), unreadable JSON, a
- * Cloudinary error, or bytes that are not a WebP.
+ * Genuine faults still exit 1: a 4xx from either service, unreadable JSON,
+ * or bytes that are not a WebP. A 5xx or a dropped connection is retried and
+ * then skipped, because an upstream outage is not something a human can act
+ * on at 3am and the next run picks it up.
  */
 const skip = m => {
   console.log('photo-sync: SKIPPED — ' + m);
@@ -96,6 +100,45 @@ const readJson = (p, fallback) => {
   try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch (e) { return fallback; }
 };
 
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/**
+ * fetch() with retries, because this runs 48 times a day against two
+ * services neither of us controls.
+ *
+ * Without it, one transient blip from Apps Script or Cloudinary was a failed
+ * job and an email. On 2026-09-10 that was 12 failures in 45 runs on Mike's
+ * repo, roughly a quarter, all of them self-correcting by the next half hour.
+ * Noise at that rate is worse than useless: it buries the run that matters.
+ *
+ * A 5xx or a dropped connection is retried. A 4xx is not — that is structural
+ * and retrying it just delays a real answer.
+ */
+async function fetchRetry(url, opts, label) {
+  const delays = [2000, 6000];
+  for (let attempt = 0; ; attempt++) {
+    let res, err;
+    try {
+      res = await fetch(url, opts);
+    } catch (e) {
+      err = e;
+    }
+    if (res && res.ok) return res;
+    if (res && res.status >= 400 && res.status < 500) {
+      die(`${label}: HTTP ${res.status} — not retrying, that is a real error`);
+    }
+    const why = err ? err.message : 'HTTP ' + res.status;
+    if (attempt >= delays.length) {
+      // Upstream is having a moment. The next scheduled run picks it up, and
+      // there is nothing here for a human to do, so do not fail the job.
+      skip(`${label} unavailable after ${attempt + 1} attempts (${why}). ` +
+           'Transient upstream problem — the next run will retry.');
+    }
+    console.log(`photo-sync: ${label} ${why}, retrying in ${delays[attempt] / 1000}s`);
+    await sleep(delays[attempt]);
+  }
+}
+
 (async () => {
   const cfg = readJson(CONFIG, null);
   if (!cfg) skip('no .github/photo-sync.config.json in this repo, nothing to map');
@@ -108,7 +151,7 @@ const readJson = (p, fallback) => {
   // secret in every client repo. Briefly required 2026-09-09, removed
   // 2026-09-10 along with the gate on the endpoint itself.
 
-  const res = await fetch(ENDPOINT, {
+  const res = await fetchRetry(ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -116,8 +159,7 @@ const readJson = (p, fallback) => {
       clientId: cfg.clientId
     }),
     redirect: 'follow'
-  });
-  if (!res.ok) die('endpoint returned HTTP ' + res.status);
+  }, 'Agency Brain endpoint');
 
   let payload;
   try { payload = await res.json(); } catch (e) { die('endpoint did not return JSON'); }
@@ -169,8 +211,7 @@ const readJson = (p, fallback) => {
     for (const t of targets) {
       const src = derive(url, t.transform);
       if (!src) { console.warn(`  ! ${slot}: not a Cloudinary upload URL, skipped`); continue; }
-      const r = await fetch(src, { redirect: 'follow' });
-      if (!r.ok) die(`${slot}: Cloudinary returned HTTP ${r.status} for ${t.file}`);
+      const r = await fetchRetry(src, { redirect: 'follow' }, `Cloudinary (${t.file})`);
       const buf = Buffer.from(await r.arrayBuffer());
       // Check the format, not the size. A size floor was tried and removed:
       // the blog placeholder's source really is half a kilobyte, so it tripped
