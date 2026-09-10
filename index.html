@@ -52,7 +52,8 @@
       { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Home Cleaning" } },
       { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Move In / Move Out Cleaning" } },
       { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Deep Cleaning" } },
-      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Germ Prevention" } }
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Germ Prevention" } },
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Odor Removal" } }
     ]
   }
   </script>
@@ -184,7 +185,44 @@
   <div class="container">
     <h2>What We Do</h2>
     <p class="section-sub">From routine home cleanings to deep scrubs and move-in/move-out service &mdash; we handle it all with care.</p>
-    <div class="service-grid" id="serviceGrid"></div>
+    <!-- These cards are real HTML on purpose. They used to be injected by
+         main.js from a services array, which meant the homepage carried no
+         links to the service pages for a crawler to follow, and a service
+         could be added to the site without ever appearing here. Odor Removal
+         was missing for months for exactly that reason. Keep this list in
+         step with services.html and with .github/photo-sync.config.json. -->
+    <div class="service-grid">
+      <article class="service-card">
+        <div class="service-media"><img src="images/hero-service-1.webp" alt="Home cleaning services in Salina, Kansas &mdash; Pro Cleaning Services" loading="lazy" width="640" height="420"></div>
+        <h3>Home Cleaning</h3>
+        <p>Regular residential cleaning that keeps your home fresh and comfortable. We handle the work so you can focus on what matters most.</p>
+        <a class="btn btn-outline" href="home-cleaning.html">Learn More</a>
+      </article>
+      <article class="service-card">
+        <div class="service-media"><img src="images/hero-service-2.webp" alt="Move in move out cleaning in Salina, Kansas &mdash; Pro Cleaning Services" loading="lazy" width="640" height="420"></div>
+        <h3>Move In / Move Out</h3>
+        <p>Thorough cleaning for moves, landlords, and property managers. We leave every space spotless for the next chapter.</p>
+        <a class="btn btn-outline" href="move-in-move-out.html">Learn More</a>
+      </article>
+      <article class="service-card">
+        <div class="service-media"><img src="images/hero-service-3.jpg" alt="Deep cleaning services in Salina, Kansas &mdash; Pro Cleaning Services" loading="lazy" width="640" height="420"></div>
+        <h3>Deep Cleaning</h3>
+        <p>A top-to-bottom clean that goes beyond the surface &mdash; baseboards, inside appliances, and every corner that regular visits miss.</p>
+        <a class="btn btn-outline" href="deep-cleaning.html">Learn More</a>
+      </article>
+      <article class="service-card">
+        <div class="service-media"><img src="images/hero-service-4.webp" alt="Germ prevention and disinfection in Salina, Kansas &mdash; Pro Cleaning Services" loading="lazy" width="640" height="420"></div>
+        <h3>Germ Prevention</h3>
+        <p>Professional disinfection and sanitizing to protect your home or office from bacteria, viruses, and illness.</p>
+        <a class="btn btn-outline" href="germ-prevention.html">Learn More</a>
+      </article>
+      <article class="service-card">
+        <div class="service-media"><img src="images/hero-service-5.jpg" alt="Odor removal in Salina, Kansas &mdash; Pro Cleaning Services" loading="lazy" width="640" height="420"></div>
+        <h3>Odor Removal</h3>
+        <p>Smells traced to the source, cleaned and disinfected &mdash; not covered with fragrance that fades by tomorrow.</p>
+        <a class="btn btn-outline" href="odor-removal.html">Learn More</a>
+      </article>
+    </div>
   </div>
 </section>
 
@@ -360,6 +398,6 @@
 </div>
 <button class="scroll-top" id="scrollTop" aria-label="Scroll to top">&#8593;</button>
 
-<script src="main.js?v=3" defer></script>
+<script src="main.js?v=4" defer></script>
 </body>
 </html>
