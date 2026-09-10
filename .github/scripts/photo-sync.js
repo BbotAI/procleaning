@@ -60,6 +60,25 @@ const FORCE = process.argv.includes('--force');
 
 const die = m => { console.error('photo-sync: ' + m); process.exit(1); };
 
+/**
+ * Exit 0 for "this repo is not set up for photo-sync yet".
+ *
+ * Not-configured is not a failure. A scheduled job that exits 1 emails the
+ * owner every thirty minutes, and a repo waiting on a secret or an intake
+ * form would do that indefinitely until the noise trained everyone to ignore
+ * it, including the run that actually broke.
+ *
+ * Genuine faults still exit 1: a 5xx from the endpoint, a rejected token
+ * (that means a WRONG value, not a missing one), unreadable JSON, a
+ * Cloudinary error, or bytes that are not a WebP.
+ */
+const skip = m => {
+  console.log('photo-sync: SKIPPED — ' + m);
+  const out = process.env.GITHUB_OUTPUT;
+  if (out) fs.appendFileSync(out, ['changed=false', 'count=0', 'summary=', ''].join('\n'));
+  process.exit(0);
+};
+
 /** Insert a Cloudinary transform into an upload URL. */
 function derive(url, transform) {
   if (!/\/image\/upload\//.test(url)) return null;
@@ -79,12 +98,16 @@ const readJson = (p, fallback) => {
 
 (async () => {
   const cfg = readJson(CONFIG, null);
-  if (!cfg) die('missing or unreadable .github/photo-sync.config.json');
+  if (!cfg) skip('no .github/photo-sync.config.json in this repo, nothing to map');
   if (!cfg.clientId) die('config has no clientId');
   if (!cfg.slots || !Object.keys(cfg.slots).length) die('config has no slots');
 
   const token = process.env.KPW_CURATOR_TOKEN;
-  if (!token) die('KPW_CURATOR_TOKEN is not set (repository secret, or export it locally)');
+  if (!token) {
+    skip('KPW_CURATOR_TOKEN is not set. Add it under Settings -> Secrets and ' +
+         'variables -> Actions, value from Apps Script -> Project Settings -> ' +
+         'CURATOR_ACCESS_TOKEN. Nothing will publish until then.');
+  }
 
   const res = await fetch(ENDPOINT, {
     method: 'POST',
@@ -100,7 +123,13 @@ const readJson = (p, fallback) => {
 
   let payload;
   try { payload = await res.json(); } catch (e) { die('endpoint did not return JSON'); }
-  if (payload.error === 'Unauthorized') die('token rejected — check KPW_CURATOR_TOKEN');
+  // A rejected token is a real fault: something is set, and it is wrong.
+  if (payload.error === 'Unauthorized') die('token rejected — KPW_CURATOR_TOKEN is set but not accepted');
+  // Not being in the Clients sheet yet is not: the intake form has not been
+  // filled in. Pro Cleaning sits in exactly this state.
+  if (!payload.success && /not found/i.test(String(payload.error || ''))) {
+    skip(payload.error + '. Fill in the intake form so the client exists in the Agency Brain.');
+  }
   if (!payload.success) die('endpoint error: ' + (payload.error || 'unknown'));
 
   const live = {};

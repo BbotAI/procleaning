@@ -75,14 +75,30 @@ const DRY = process.argv.includes('--dry-run');
 
 const die = m => { console.error('blog-sync: ' + m); process.exit(1); };
 
+/**
+ * Exit 0 for "this repo is not set up for blog-sync yet".
+ *
+ * Not-configured is not a failure. On a cron, exiting 1 emails the owner
+ * every thirty minutes forever, which trains everyone to ignore the alert
+ * that actually matters. The template repo hits every one of these.
+ * Genuine faults (a non-200 feed, a missing marker on a real site) still
+ * exit 1.
+ */
+const skip = m => {
+  console.log('blog-sync: SKIPPED — ' + m);
+  const out = process.env.GITHUB_OUTPUT;
+  if (out) fs.appendFileSync(out, ['changed=false', 'count=0', 'summary=', ''].join(String.fromCharCode(10)));
+  process.exit(0);
+};
+
 // ── config ────────────────────────────────────────────────────────────────
 
 function blogUrl() {
-  if (!fs.existsSync(AGENT_MD)) die('BLOG_AGENT.md not found in ' + REPO);
+  if (!fs.existsSync(AGENT_MD)) skip('no BLOG_AGENT.md in this repo, nothing to sync');
   const m = /##\s*THIS SITE'S BLOG\s*\n+\s*(\S+)/.exec(fs.readFileSync(AGENT_MD, 'utf8'));
   if (!m) die("no 'THIS SITE'S BLOG' URL in BLOG_AGENT.md");
   const url = m[1].replace(/\/+$/, '');
-  if (/CLIENT_DOMAIN|example\.com|\[/.test(url)) die('BLOG_AGENT.md still has the placeholder blog URL: ' + url);
+  if (/CLIENT_DOMAIN|example\.com|\[/.test(url)) skip('BLOG_AGENT.md still has the placeholder blog URL, so this is a template rather than a live site');
   if (!/^https?:\/\//.test(url)) die('blog URL is not absolute: ' + url);
   return url;
 }
@@ -264,8 +280,8 @@ function schema(post, style) {
 // ── main ──────────────────────────────────────────────────────────────────
 
 (async () => {
-  if (!fs.existsSync(BLOG_HTML)) die('blog.html not found in ' + REPO);
-  if (!fs.existsSync(TEMPLATE)) die('missing .github/blog-card.template.html — see the header of this file');
+  if (!fs.existsSync(BLOG_HTML)) skip('no blog.html in this repo, nothing to sync');
+  if (!fs.existsSync(TEMPLATE)) skip('no .github/blog-card.template.html, so this repo is not configured yet');
 
   const blog = blogUrl();
   let tpl = fs.readFileSync(TEMPLATE, 'utf8');
