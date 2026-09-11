@@ -76,12 +76,20 @@ const die = m => { console.error('photo-sync: ' + m); process.exit(1); };
  * then skipped, because an upstream outage is not something a human can act
  * on at 3am and the next run picks it up.
  */
-const skip = m => {
-  console.log('photo-sync: SKIPPED — ' + m);
-  const out = process.env.GITHUB_OUTPUT;
-  if (out) fs.appendFileSync(out, ['changed=false', 'count=0', 'summary=', ''].join('\n'));
-  process.exit(0);
-};
+class SkipSignal extends Error {}
+
+/**
+ * Signal "nothing to do", handled at the bottom so the process ends
+ * naturally with status 0.
+ *
+ * This deliberately does NOT call process.exit(). Doing so while a fetch
+ * response was still in flight aborted Node with a libuv assertion and exit
+ * code 127 — a FAILED job, which is precisely the email this path exists to
+ * prevent. Reproduced on 2026-09-11 against a stub returning 404; draining
+ * the body first was tried and did not fix it. Throwing and letting the
+ * stack unwind does.
+ */
+const skip = m => { throw new SkipSignal(m); };
 
 /** Insert a Cloudinary transform into an upload URL. */
 function derive(url, transform) {
@@ -103,6 +111,38 @@ const readJson = (p, fallback) => {
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 /**
+ * Which HTTP statuses are worth retrying.
+ *
+ * MEASURED, not assumed. On 2026-09-11 the Apps Script exec URL returned
+ * **404 on 2 of 6 identical requests**, seconds apart, with no change at
+ * either end. Its redirect chain to script.googleusercontent.com transiently
+ * 404s under load. Treating 4xx as structural — the usual, correct rule —
+ * was therefore wrong for this endpoint and was the last source of failure
+ * emails: ~1 run in 12 even after 5xx retries were added.
+ *
+ * 404 and 429 are retried. 400, 401 and 403 stay fatal, because those really
+ * do mean the request itself is wrong and retrying only delays the answer.
+ */
+/**
+ * Drain an unusable response before we walk away from it.
+ *
+ * Without this, exiting while a response body is still unread leaves an open
+ * handle and Node aborts with a libuv assertion and exit code 127 — which on
+ * a runner is a FAILED job, i.e. the exact email this whole retry path exists
+ * to stop. Caught on 2026-09-11 testing the 404 case against a local stub;
+ * the HTML case did not show it because that path already calls res.text().
+ */
+async function discardBody(res) {
+  try { if (res && res.body && !res.bodyUsed) await res.body.cancel(); } catch (e) { /* nothing to do */ }
+}
+
+function isRetryableStatus(status) {
+  if (status >= 500) return true;
+  return status === 404 || status === 429;
+}
+
+
+/**
  * fetch() with retries, because this runs 48 times a day against two
  * services neither of us controls.
  *
@@ -114,6 +154,57 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
  * A 5xx or a dropped connection is retried. A 4xx is not — that is structural
  * and retrying it just delays a real answer.
  */
+/**
+ * Like fetchRetry, but the JSON parse happens INSIDE the retry.
+ *
+ * This is the bug that survived the first retry pass. Apps Script answers a
+ * struggling request with an HTML error page carrying a **200** status, so
+ * `res.ok` is true, the retry never fires, and `res.json()` throws on the
+ * way out. That was ~1 failed run in 12 on 2026-09-11, each one an email.
+ *
+ * `res.ok` is not enough validation for Apps Script. A response only counts
+ * as usable once it has parsed.
+ */
+async function fetchJsonRetry(url, opts, label, isValid) {
+  const delays = [2000, 6000];
+  for (let attempt = 0; ; attempt++) {
+    let res, err;
+    try { res = await fetch(url, opts); } catch (e) { err = e; }
+
+    if (res && res.ok) {
+      const body = await res.text();
+      try {
+        const parsed = JSON.parse(body);
+        if (!isValid || isValid(parsed)) return parsed;
+        // Valid JSON, wrong answer. Apps Script intermittently 302-redirects
+        // the POST, and a redirect turns POST into GET, so the body is
+        // dropped and doGet answers instead — with its health check,
+        // {"status":"KPW Agency Brain is live"}. Nothing is wrong at either
+        // end; the request simply took the wrong door. Retry it.
+        throw new Error('unexpected payload: ' + body.trim().slice(0, 70));
+      } catch (e) {
+        // A 200 that is not JSON is Apps Script having a bad moment, not a
+        // structural problem. Retry it like any other transient fault.
+        err = new Error(/^unexpected payload/.test(e.message)
+          ? e.message
+          : '200 but not JSON (' + body.trim().slice(0, 60).replace(/\s+/g, ' ') + '…)');
+      }
+    } else if (res && !res.ok && !isRetryableStatus(res.status)) {
+      await discardBody(res);
+      die(`${label}: HTTP ${res.status} — not retrying, that is a real error`);
+    }
+
+    await discardBody(res);
+    const why = err ? err.message : 'HTTP ' + res.status;
+    if (attempt >= delays.length) {
+      skip(`${label} unusable after ${attempt + 1} attempts (${why}). ` +
+           'Transient upstream problem — the next run will retry.');
+    }
+    console.log(`photo-sync: ${label} ${why}, retrying in ${delays[attempt] / 1000}s`);
+    await sleep(delays[attempt]);
+  }
+}
+
 async function fetchRetry(url, opts, label) {
   const delays = [2000, 6000];
   for (let attempt = 0; ; attempt++) {
@@ -124,9 +215,11 @@ async function fetchRetry(url, opts, label) {
       err = e;
     }
     if (res && res.ok) return res;
-    if (res && res.status >= 400 && res.status < 500) {
+    if (res && !res.ok && !isRetryableStatus(res.status)) {
+      await discardBody(res);
       die(`${label}: HTTP ${res.status} — not retrying, that is a real error`);
     }
+    await discardBody(res);
     const why = err ? err.message : 'HTTP ' + res.status;
     if (attempt >= delays.length) {
       // Upstream is having a moment. The next scheduled run picks it up, and
@@ -151,7 +244,7 @@ async function fetchRetry(url, opts, label) {
   // secret in every client repo. Briefly required 2026-09-09, removed
   // 2026-09-10 along with the gate on the endpoint itself.
 
-  const res = await fetchRetry(ENDPOINT, {
+  const payload = await fetchJsonRetry(ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -159,10 +252,7 @@ async function fetchRetry(url, opts, label) {
       clientId: cfg.clientId
     }),
     redirect: 'follow'
-  }, 'Agency Brain endpoint');
-
-  let payload;
-  try { payload = await res.json(); } catch (e) { die('endpoint did not return JSON'); }
+  }, 'Agency Brain endpoint', p => p && (p.success === true || typeof p.error === 'string'));
   // Unauthorized here would mean the endpoint was re-gated without this
   // script being updated, which is a real fault rather than a config gap.
   if (payload.error === 'Unauthorized') die('endpoint rejected the request — getWebsitePhotos appears to be gated again');
@@ -237,4 +327,12 @@ async function fetchRetry(url, opts, label) {
   fs.writeFileSync(STATE, JSON.stringify(state, null, 2) + '\n');
   console.log(`photo-sync: updated ${written} file(s) across ${changed.length} slot(s)`);
   report(true, written, changed.map(c => c.slot).join('; ').slice(0, 200));
-})().catch(e => die(e && e.stack ? e.stack : String(e)));
+})().catch(e => {
+  if (e instanceof SkipSignal) {
+    console.log('photo-sync: SKIPPED — ' + e.message);
+    const out = process.env.GITHUB_OUTPUT;
+    if (out) fs.appendFileSync(out, ['changed=false', 'count=0', 'summary=', ''].join(String.fromCharCode(10)));
+    return;                      // natural exit 0, no process.exit()
+  }
+  die(e && e.stack ? e.stack : String(e));
+});

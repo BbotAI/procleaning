@@ -84,12 +84,20 @@ const die = m => { console.error('blog-sync: ' + m); process.exit(1); };
  * Genuine faults (a non-200 feed, a missing marker on a real site) still
  * exit 1.
  */
-const skip = m => {
-  console.log('blog-sync: SKIPPED — ' + m);
-  const out = process.env.GITHUB_OUTPUT;
-  if (out) fs.appendFileSync(out, ['changed=false', 'count=0', 'summary=', ''].join(String.fromCharCode(10)));
-  process.exit(0);
-};
+class SkipSignal extends Error {}
+
+/**
+ * Signal "nothing to do", handled at the bottom so the process ends
+ * naturally with status 0.
+ *
+ * This deliberately does NOT call process.exit(). Doing so while a fetch
+ * response was still in flight aborted Node with a libuv assertion and exit
+ * code 127 — a FAILED job, which is precisely the email this path exists to
+ * prevent. Reproduced on 2026-09-11 against a stub returning 404; draining
+ * the body first was tried and did not fix it. Throwing and letting the
+ * stack unwind does.
+ */
+const skip = m => { throw new SkipSignal(m); };
 
 // ── config ────────────────────────────────────────────────────────────────
 
@@ -111,8 +119,10 @@ async function fetchAllPosts(blog) {
   const out = [];
   for (let start = 1; start < 5000; start += PAGE) {
     const u = `${blog}/feeds/posts/default?alt=json&max-results=${PAGE}&start-index=${start}`;
-    const res = await fetchRetry(u, { headers: { 'User-Agent': 'kpw-blog-sync' } }, 'Blogger feed');
-    const entries = ((await res.json()).feed || {}).entry || [];
+    // Parsed inside the retry: a 200 carrying an HTML error page is a
+    // transient upstream fault, and res.ok alone does not catch it.
+    const json = await fetchJsonRetry(u, { headers: { 'User-Agent': 'kpw-blog-sync' } }, 'Blogger feed');
+    const entries = ((json || {}).feed || {}).entry || [];
     out.push(...entries);
     if (entries.length < PAGE) break;
   }
@@ -122,20 +132,84 @@ async function fetchAllPosts(blog) {
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 /**
+ * Which HTTP statuses are worth retrying.
+ *
+ * MEASURED, not assumed. On 2026-09-11 the Apps Script exec URL returned
+ * **404 on 2 of 6 identical requests**, seconds apart, with no change at
+ * either end. Its redirect chain to script.googleusercontent.com transiently
+ * 404s under load. Treating 4xx as structural — the usual, correct rule —
+ * was therefore wrong for this endpoint and was the last source of failure
+ * emails: ~1 run in 12 even after 5xx retries were added.
+ *
+ * 404 and 429 are retried. 400, 401 and 403 stay fatal, because those really
+ * do mean the request itself is wrong and retrying only delays the answer.
+ */
+/**
+ * Drain an unusable response before we walk away from it.
+ *
+ * Without this, exiting while a response body is still unread leaves an open
+ * handle and Node aborts with a libuv assertion and exit code 127 — which on
+ * a runner is a FAILED job, i.e. the exact email this whole retry path exists
+ * to stop. Caught on 2026-09-11 testing the 404 case against a local stub;
+ * the HTML case did not show it because that path already calls res.text().
+ */
+async function discardBody(res) {
+  try { if (res && res.body && !res.bodyUsed) await res.body.cancel(); } catch (e) { /* nothing to do */ }
+}
+
+function isRetryableStatus(status) {
+  if (status >= 500) return true;
+  return status === 404 || status === 429;
+}
+
+
+/**
  * fetch() with retries. This polls Blogger 48 times a day; a single transient
  * blip should not be a failed job and an email. A 4xx is not retried, since
  * that is structural. A 5xx or a dropped connection is retried, then skipped:
  * an upstream outage is not actionable and the next run picks it up.
  */
+/** fetchRetry, but the JSON parse happens inside the retry. See photo-sync. */
+async function fetchJsonRetry(url, opts, label) {
+  const delays = [2000, 6000];
+  for (let attempt = 0; ; attempt++) {
+    let res, err;
+    try { res = await fetch(url, opts); } catch (e) { err = e; }
+
+    if (res && res.ok) {
+      const body = await res.text();
+      try {
+        return JSON.parse(body);
+      } catch (e) {
+        err = new Error('200 but not JSON (' + body.trim().slice(0, 60).replace(/\s+/g, ' ') + '…)');
+      }
+    } else if (res && !res.ok && !isRetryableStatus(res.status)) {
+      await discardBody(res);
+      die(`${label}: HTTP ${res.status} — not retrying, that is a real error`);
+    }
+
+    await discardBody(res);
+    const why = err ? err.message : 'HTTP ' + res.status;
+    if (attempt >= delays.length) {
+      skip(`${label} unusable after ${attempt + 1} attempts (${why}). ` +
+           'Transient upstream problem — the next run will retry.');
+    }
+    console.log(`blog-sync: ${label} ${why}, retrying in ${delays[attempt] / 1000}s`);
+    await sleep(delays[attempt]);
+  }
+}
+
 async function fetchRetry(url, opts, label) {
   const delays = [2000, 6000];
   for (let attempt = 0; ; attempt++) {
     let res, err;
     try { res = await fetch(url, opts); } catch (e) { err = e; }
     if (res && res.ok) return res;
-    if (res && res.status >= 400 && res.status < 500) {
+    if (res && !res.ok && !isRetryableStatus(res.status)) {
+      await discardBody(res);
       die(`${label}: HTTP ${res.status} — not retrying, that is a real error`);
     }
+    await discardBody(res);
     const why = err ? err.message : 'HTTP ' + res.status;
     if (attempt >= delays.length) {
       skip(`${label} unavailable after ${attempt + 1} attempts (${why}). ` +
@@ -392,4 +466,12 @@ function schema(post, style) {
   fs.writeFileSync(BLOG_HTML, html);
   console.log(`blog-sync: added ${fresh.length} card(s) to blog.html`);
   report(true, fresh.length, fresh.map(p => p.title).join('; ').slice(0, 200));
-})().catch(e => die(e && e.stack ? e.stack : String(e)));
+})().catch(e => {
+  if (e instanceof SkipSignal) {
+    console.log('blog-sync: SKIPPED — ' + e.message);
+    const out = process.env.GITHUB_OUTPUT;
+    if (out) fs.appendFileSync(out, ['changed=false', 'count=0', 'summary=', ''].join(String.fromCharCode(10)));
+    return;                      // natural exit 0, no process.exit()
+  }
+  die(e && e.stack ? e.stack : String(e));
+});
