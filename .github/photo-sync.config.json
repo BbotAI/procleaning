@@ -2,7 +2,10 @@
   "_comment": [
     "Portal slot -> the image file(s) on this site, and the Cloudinary transform.",
     "",
-    "STATUS 2026-09-09: Pro Cleaning is not in the Agency Brain Clients sheet yet.",
+    "STATUS 2026-09-12: intake complete, client is live in the Agency Brain.",
+    "The clientId is PRO_CLEANING_SERVICES -- NOT _LLC. It was guessed as",
+    "_LLC before intake and would have skipped forever as Client not found,",
+    "looking exactly like it was still waiting. Take the ID from the sheet.",
     "Until the intake form is filled in, getWebsitePhotos has nothing to return and",
     "this job will report 'Client not found'. That is expected, not a fault.",
     "",
@@ -40,7 +43,7 @@
     "If the client uploads to those slots, photo-sync warns and does nothing."
   ],
 
-  "clientId": "PRO_CLEANING_SERVICES_LLC",
+  "clientId": "PRO_CLEANING_SERVICES",
 
   "slots": {
     "hero-home": [
