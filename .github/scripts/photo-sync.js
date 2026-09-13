@@ -97,11 +97,39 @@ function derive(url, transform) {
   return url.replace('/image/upload/', '/image/upload/' + transform + '/');
 }
 
-/** RIFF....WEBP magic. Cheaper and stricter than trusting Content-Type. */
-function isWebp(buf) {
-  return buf.length > 12 &&
-         buf.toString('ascii', 0, 4) === 'RIFF' &&
-         buf.toString('ascii', 8, 12) === 'WEBP';
+/**
+ * Magic-byte check, against the format the target filename actually claims.
+ * Cheaper and stricter than trusting Content-Type.
+ *
+ * This used to test for WebP and nothing else, which was correct only while
+ * every site photo-sync touched was WebP. Pro Cleaning's logo and featured-1
+ * are .jpg and their transforms say f_jpg, so the first run after she
+ * uploaded her photos fetched a perfectly good JPEG, failed the WebP test,
+ * and exited 1 - a failure email for a file that was exactly right. Check
+ * the format the file says it is, not one hardcoded format.
+ */
+const MAGIC = {
+  webp: buf => buf.length > 12 && buf.toString('ascii', 0, 4) === 'RIFF'
+                               && buf.toString('ascii', 8, 12) === 'WEBP',
+  jpg:  buf => buf.length > 3  && buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF,
+  png:  buf => buf.length > 8  && buf.toString('hex', 0, 8) === '89504e470d0a1a0a'
+};
+
+function formatOf(file) {
+  const ext = path.extname(file).toLowerCase().replace('.', '');
+  return ext === 'jpeg' ? 'jpg' : ext;
+}
+
+/**
+ * True when buf is a real image of the format named by file's extension. An
+ * unrecognised extension still has to be *some* known image, which keeps the
+ * original point of this check: a Cloudinary error arrives as JSON or HTML
+ * and must never be written over a live site photo.
+ */
+function isExpectedImage(buf, file) {
+  const fmt = formatOf(file);
+  if (MAGIC[fmt]) return MAGIC[fmt](buf);
+  return Object.values(MAGIC).some(fn => fn(buf));
 }
 
 const readJson = (p, fallback) => {
@@ -303,11 +331,12 @@ async function fetchRetry(url, opts, label) {
       if (!src) { console.warn(`  ! ${slot}: not a Cloudinary upload URL, skipped`); continue; }
       const r = await fetchRetry(src, { redirect: 'follow' }, `Cloudinary (${t.file})`);
       const buf = Buffer.from(await r.arrayBuffer());
-      // Check the format, not the size. A size floor was tried and removed:
+      // Check the format against the filename's own extension, not the size.
+      // A size floor was tried and removed:
       // the blog placeholder's source really is half a kilobyte, so it tripped
       // the floor while being perfectly valid. A Cloudinary error comes back as
       // JSON or HTML, which fails this check at any size.
-      if (!isWebp(buf)) die(`${slot}: ${t.file} is not a WebP (${buf.length} bytes), refusing to write it`);
+      if (!isExpectedImage(buf, t.file)) die(`${slot}: ${t.file} is not a valid ${formatOf(t.file) || 'image'} (${buf.length} bytes), refusing to write it`);
       const dest = path.join(REPO, t.file);
       if (!DRY) {
         fs.mkdirSync(path.dirname(dest), { recursive: true });
