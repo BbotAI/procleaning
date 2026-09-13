@@ -46,6 +46,10 @@
   "clientId": "PRO_CLEANING_SERVICES",
 
   "slots": {
+    "about-team": [
+      { "file": "images/about-team.webp", "transform": "w_1200,h_750,c_fill,g_auto,f_webp,q_auto:eco" }
+    ],
+
     "hero-home": [
       { "file": "images/hero-home.webp", "transform": "w_1200,h_675,c_fill,g_auto,f_webp,q_auto:eco" }
     ],

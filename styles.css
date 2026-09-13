@@ -140,11 +140,75 @@ img { max-width: 100%; height: auto; display: block; }
 .hero--image .btn-outline          { border-color: rgba(255,255,255,0.85); color: #fff; }
 .hero--image .btn-outline:hover    { background: rgba(255,255,255,0.15); color: #fff; }
 
-/* Service page image heroes */
-.hero--homeCleaning  { background-image: linear-gradient(rgba(0,0,0,0.50),rgba(0,0,0,0.50)), url('images/hero-service-1.webp'); background-size:cover; background-position:center; }
-.hero--moveInMoveOut { background-image: linear-gradient(rgba(0,0,0,0.50),rgba(0,0,0,0.50)), url('images/hero-service-2.webp'); background-size:cover; background-position:center; }
-.hero--deepCleaning  { background-image: linear-gradient(rgba(0,0,0,0.50),rgba(0,0,0,0.50)), url('images/hero-service-3.jpg'); background-size:cover; background-position:center; }
-.hero--germPrevention{ background-image: linear-gradient(rgba(0,0,0,0.50),rgba(0,0,0,0.50)), url('images/hero-service-4.webp'); background-size:cover; background-position:center; }
+/* ─── SERVICE PAGE PHOTO BAND ──────────────────────
+   The photo stands on its own: no headline, no paragraph. Only the two
+   calls to action sit on it, pinned low over a gradient scrim.
+
+   Why it changed (2026-09-13): these pages used to run the headline and
+   lead paragraph over the photo, but the white-text rules were only ever
+   written for .hero--image (the homepage). The service heroes inherited
+   the default teal h1 and grey lead instead, so both sat unreadable on a
+   photograph. Splitting the copy out fixes it for good — text on a solid
+   background can't be broken by whichever photo the client uploads next.
+
+   The scrim is the part to keep. Anything overlaid on a client-supplied
+   photo needs its own contrast, or legibility depends on that week's
+   upload. photo-sync replaces these files on the client's say-so, so the
+   design has to hold for a photo nobody has seen yet. */
+.hero-photo {
+  position: relative;
+  min-height: 300px;
+  display: flex;
+  align-items: flex-end;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+@media (min-width: 768px) { .hero-photo { min-height: 440px; } }
+
+.hero-photo::after {
+  content: "";
+  position: absolute; inset: auto 0 0 0; height: 55%;
+  background: linear-gradient(to top, rgba(0,0,0,0.60), rgba(0,0,0,0));
+  pointer-events: none;
+}
+
+.hero-photo-actions {
+  position: relative; z-index: 1;
+  width: 100%; max-width: var(--max-width);
+  margin: 0 auto; padding: 0 20px 26px;
+  display: flex; gap: 12px; flex-wrap: wrap;
+}
+.hero-photo .btn-outline       { border-color: rgba(255,255,255,0.9); color: #fff; background: rgba(0,0,0,0.20); }
+.hero-photo .btn-outline:hover { background: rgba(255,255,255,0.18); color: #fff; }
+
+/* The headline and lead, now on solid ground directly below the photo. */
+.hero-lede { padding: 44px 0 4px; }
+.hero-lede .lead { margin-bottom: 0; }
+@media (max-width: 640px) { .hero-lede { padding: 32px 0 4px; } }
+
+/* Service page photos. photo-sync overwrites these files in place, so the
+   filenames are the contract — never rename one without updating
+   .github/photo-sync.config.json. */
+.hero--homeCleaning  { background-image: url('images/hero-service-1.webp'); }
+.hero--moveInMoveOut { background-image: url('images/hero-service-2.webp'); }
+.hero--deepCleaning  { background-image: url('images/hero-service-3.jpg'); }
+.hero--germPrevention{ background-image: url('images/hero-service-4.webp'); }
+.hero--odorRemoval   { background-image: url('images/hero-service-5.jpg'); }
+
+/* ─── ABOUT / TEAM PHOTO ───────────────────────────
+   Jennifer's about-team slot in the portal publishes to this file. Before
+   2026-09-13 the slot existed in the portal with nowhere to land on the
+   site, so she could upload a photo and never see it appear. */
+.about-media { margin: 0 0 8px; }
+.about-media img {
+  width: 100%; height: auto;
+  aspect-ratio: 16 / 10; object-fit: cover;
+  border-radius: 10px; box-shadow: var(--shadow);
+}
+.about-media figcaption {
+  margin-top: 10px; font-size: 0.88rem; color: var(--muted);
+}
 
 /* ─── SECTIONS ────────────────────────────────────── */
 .section { padding: 56px 0; }
