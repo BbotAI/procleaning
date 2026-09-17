@@ -1,5 +1,19 @@
 # Blogger Canonical Fix — blog.procleaningsalinaks.com
 
+## ✅ FIXED AND VERIFIED 2026-09-17
+
+Kaleb removed the block from all three themes. Verified post by post as
+Googlebot Smartphone: **71 posts (KPW 38, Mike's 25, Pro Cleaning 8), every one
+with exactly one canonical pointing at its own clean URL, and no empty tag
+anywhere.** Homepage, label and archive pages all correct on both desktop and
+mobile. All three blog sitemaps resubmitted the same day.
+
+Search Console still has to recrawl before the reports clear — start the
+validations listed at the end of this file. Keep the rest of this document: it
+is what to check if a theme is ever edited again.
+
+---
+
 ## ⚠ 2026-09-16: THE SNIPPET THIS FILE USED TO RECOMMEND IS THE BUG
 
 Earlier versions of this file, and `KPW_CANONICAL_FIX_SKILL.md`, said to paste
