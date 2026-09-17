@@ -383,3 +383,25 @@ Once the domain is known, run a find-and-replace across all files:
 
 *Kansas Prairie Webworks — PROGRESS.md*
 *Built 2026-06-12*
+
+---
+
+## 2026-09-16 — blog GSC errors: an empty canonical in the Blogger theme
+
+Search Console emailed "Duplicate without user-selected canonical" and
+"Redirect error" for blog.procleaningsalinaks.com. URL Inspection pins both:
+
+- Duplicate: the `?m=1` copies of 4 posts (odor-removal, natural-odor-defense,
+  seasonal checklist, move-out). Redirect error: `hard-water-cleaning-salina-ks`
+  and `what-deep-cleaning-includes-salina-ks`.
+- Cause: every post page emits two canonicals, the second `href=''`, from a
+  snippet hand-added to the theme after our 07-28 canonical skill. **Nothing in
+  this repo causes it and nothing in this repo can fix it.** Removal takes
+  2 minutes in Blogger: `BLOGGER_CANONICAL_FIX.md` (rewritten, with a verify
+  command).
+- Her blog sitemap was last read by Google **2026-07-23, with 1 error**, before
+  any post existed. Resubmit after the theme fix.
+- Main site: `contact.html` still shows the July 403 in GSC but serves 200 now.
+  Request Indexing. `services.html`, `service-area.html`, `germ-prevention.html`
+  are "Discovered - currently not indexed".
+- Full record: kpw-agency-brain `SYSTEM_STATUS.md`, 2026-09-16.
